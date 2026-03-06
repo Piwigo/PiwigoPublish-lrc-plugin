@@ -64,9 +64,7 @@ function PluginInfoDialogSections.startDialog(propertyTable)
     if prefs.debugToFile == nil then
         prefs.debugToFile = false
     end
-    if prefs.debugFailedUpload == nil then
-        prefs.debugFailedUpload = false
-    end
+
     -- Initialize update check preference
     if prefs.checkUpdatesOnStartup == nil then
         prefs.checkUpdatesOnStartup = true
@@ -86,8 +84,6 @@ function PluginInfoDialogSections.startDialog(propertyTable)
     propertyTable.debugEnabled = prefs.debugEnabled
     propertyTable.debugToFile = prefs.debugToFile
     propertyTable.checkUpdatesOnStartup = prefs.checkUpdatesOnStartup
-    propertyTable.debugFailedUpload = prefs.debugFailedUpload
-
 end
 
 -- *************************************************
@@ -129,7 +125,7 @@ function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
                                 title = "Piwigo Publisher",
                                 font = "<system/bold>",
                                 alignment = 'left',
-                                width = 250,
+								width = 250,
                             },
 
                             -- Version @ UpdateStatus on one line, red if not up to date
@@ -170,7 +166,7 @@ function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
                     f:row {
                         f:static_text {
                             title = "Made in England with cider and cheddar cheese in Somerset,\n" ..
-                                "the Land of the Summer People.",
+                                    "the Land of the Summer People.",
                             font = "<system/small>",
                             text_color = LrColor(0.5, 0.5, 0.5),
                             alignment = 'center',
@@ -293,7 +289,7 @@ function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
                     fill_horizontal = 1,
                     f:static_text {
                         title = "If you experience a problem, enable logging below and reproduce the issue.\n" ..
-                            "You can then share the log with support.",
+                                "You can then share the log with support.",
                         fill_horizontal = 1,
                         height_in_lines = 2,
                         alignment = 'left',
@@ -314,7 +310,7 @@ function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
                     f:radio_button {
                         value = bind 'debugEnabled',
                         checked_value = true,
-                        title = "Logging on (to Lightroom Console unless 'Log to file' is enabled)",
+                        title = "Live view in Lightroom (Help → Debug Console)",
                     },
                     f:spacer { fill_horizontal = 1 },
                     f:push_button {
@@ -332,27 +328,12 @@ function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
                         enabled = bind 'debugEnabled',
                     },
                     f:static_text {
-                        title = "Log to file on disk (recommended for sharing with support)",
+                        title = "Also save to log file on disk (recommended for sharing with support)",
                         alignment = 'left',
                         fill_horizontal = 1,
                         width_in_chars = 40,
                     },
                 },
-
-                f:row {
-                    f:checkbox {
-                        value = bind 'debugFailedUpload',
-                        enabled = bind 'debugEnabled',
-                    },
-                    f:static_text {
-                        title = "Log extra information for failed uploads (creates PiwigoPublishDebug folder on your desktop)",
-                        alignment = 'left',
-                        fill_horizontal = 1,
-                        width_in_chars = 40,
-                    },
-                },
-
-
             },
 
             -- Unsafe / developer group box

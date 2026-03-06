@@ -23,7 +23,7 @@
 
 
 return {
-    schemaVersion = 5,
+    schemaVersion = 6,
     metadataFieldsForPhotos = {
 
         {
@@ -32,7 +32,7 @@ return {
             searchable = true,
             browsable = true,
             id = 'pwHostURL',
-            title = 'Piwigo Host',
+            title = "Piwigo Host",
             version = 3
         },
         {
@@ -41,7 +41,7 @@ return {
             searchable = true,
             browsable = true,
             id = 'pwAlbumName',
-            title = 'Album Name',
+            title = "Album Name",
             version = 2
         },
         {
@@ -50,7 +50,7 @@ return {
             searchable = false,
             browsable = false,
             id = 'pwAlbumURL',
-            title = 'Album URL',
+            title = "Album URL",
             version = 4
         },
         {
@@ -59,7 +59,7 @@ return {
             searchable = false,
             browsable = false,
             id = 'pwImageURL',
-            title = 'Photo URL',
+            title = "Photo URL",
             version = 4
         },
         {
@@ -68,7 +68,7 @@ return {
             searchable = true,
             browsable = true,
             id = 'pwUploadDate',
-            title = 'Upload Date',
+            title = "Upload Date",
             version = 2
         },
         {
@@ -77,7 +77,7 @@ return {
             searchable = true,
             browsable = true,
             id = 'pwUploadTime',
-            title = 'Upload Time',
+            title = "Upload Time",
             version = 2
         },
         {
@@ -86,8 +86,17 @@ return {
             searchable = false,
             browsable = false,
             id = 'pwCommentSync',
-            title = 'pwCommentSync',
+            title = "pwCommentSync",
             version = 1
+        },
+        {
+            dataType = 'string',
+            readOnly = true,
+            searchable = false,
+            browsable = false,
+            id = 'pwVideoPreset',
+            title = "Video Preset",
+            version = 6
         },
     }
 }

@@ -20,6 +20,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ]]
 
+---@diagnostic disable: undefined-global
+
 
 return {
 title = LOC "$$$/FionaBoston/Title=Piwigo Publisher Metadata", id = 'PWPTagset',

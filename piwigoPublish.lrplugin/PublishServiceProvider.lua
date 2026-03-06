@@ -24,8 +24,6 @@
 
 require "PublishDialogSections"
 require "PublishTask"
-require "PublishTaskImageProcessing"
-
 
 return {
 
@@ -35,40 +33,50 @@ return {
 	sectionsForBottomOfDialog = PublishDialogSections.sectionsForBottomOfDialog,
 	endDialog = PublishDialogSections.endDialog,
 
-	hideSections = { 'exportLocation' },
+	hideSections = { 'exportLocation', 'videoFileSettings' },
 
 
 	-- Behaviour Settings
-	
-	-- Piwigo supports .jpg, .jpeg, .png, .gif, .webp, .heic
-	-- of these, LrC can only export JPEG and PNG, so we limit to those formats in the publish dialog.
-	allowFileFormats = { "JPEG", "PNG"},
-	
+	allowFileFormats = { "JPEG", "PNG" },
 	allowColorSpaces = nil,
-	canExportVideo = false,
-	supportsCustomSortOrder = false,
+	canExportVideo = true,
+	allowVideoExportPresets = {
+		{ formatID = "original" },  -- LrC does not re-encode; Video Toolkit handles transcoding
+	},
+	supportsCustomSortOrder = true,
 	hidePrintResolution = true,
 	supportsIncrementalPublish = 'only', -- plugin only visible in publish services, not export
 
 
 	-- these fields are stored in the publish service settings by Lightroom
 	exportPresetFields = {
-		{ key = 'host',                  	default = '' },
-		{ key = "userName",              	default = '' },
-		{ key = "userPW",                	default = '' },
-		{ key = "KwFullHierarchy",       	default = true },
-		{ key = "KwSynonyms",            	default = true },
-		{ key = "mdTitle",              	default = "{{title}}" },
-		{ key = "mdDescription",         	default = "{{caption}}" },
-		{ key = "syncAlbumDescriptions", 	default = false },
-		{ key = "syncCommentsPublish",   	default = true },
-		{ key = "syncCommentsPubOnly",   	default = false },
-		{ key = "PWP_albumAssociation", 	default = true },
-		{ key = "PWP_customAlbumSettings", 	default = false },
-		{ key = "KwFilterExclude",       	default = '' },
-		{ key = "KwFilterInclude",       	default = '' },
-		
-		
+		{ key = 'host',                  default = '' },
+		{ key = "userName",              default = '' },
+		{ key = "userPW",                default = '' },
+		{ key = "KwFullHierarchy",       default = true },
+		{ key = "KwSynonyms",            default = true },
+		{ key = "mdTitle",               default = "{{title}}" },
+		{ key = "mdDescription",         default = "{{caption}}" },
+		{ key = "albumDescSyncMode",     default = "ask" },
+		{ key = "albumStatusSyncMode",   default = "ask" },
+		{ key = "syncPhotoSortOrder",    default = false },
+		{ key = "syncCommentsPublish",   default = true },
+		{ key = "syncCommentsPubOnly",   default = false },
+		{ key = "KwFilterInclude",       default = '' },
+		{ key = "KwFilterExclude",       default = '' },
+		-- Video Toolkit settings (Phase 2B)
+		{ key = "vtkEnabled",            default = false },
+		{ key = "vtkIncludeVideo",       default = true },
+		{ key = "vtkToolkitPath",        default = '' },
+		{ key = "vtkDefaultPreset",      default = "medium" },
+		{ key = "vtkGeneratePoster",     default = true },
+		{ key = "vtkPosterTimestamp",    default = 10 },
+		{ key = "vtkPythonPath",         default = '' },
+		{ key = "vtkFFmpegPath",         default = '' },
+		{ key = "vtkFFprobePath",        default = '' },
+		{ key = "vtkExifToolPath",       default = '' },
+		{ key = "vtkPresetsFile",        default = '' },
+		{ key = "vtkHardwareAccel",     default = 'auto' },
 	},
 
 	metadataThatTriggersRepublish = function(publishSettings, photoId, fieldName)
@@ -99,19 +107,18 @@ return {
 	-- titleForPublishedSmartCollection_standalone = ""
 
 	-- Images Processing function
-	processRenderedPhotos                            = PublishTaskImageProcessing.processRenderedPhotos,
-	addCommentToPublishedPhoto                       = PublishTaskImageProcessing.addCommentToPublishedPhoto,
-	getCommentsFromPublishedCollection               = PublishTaskImageProcessing.getCommentsFromPublishedCollection,
-	deletePhotosFromPublishedCollection              = PublishTaskImageProcessing.deletePhotosFromPublishedCollection,
-
+	processRenderedPhotos                            = PublishTask.processRenderedPhotos,
+	canAddCommentsToService                          = PublishTask.canAddCommentsToService,
+	addCommentToPublishedPhoto                       = PublishTask.addCommentToPublishedPhoto,
+	getCommentsFromPublishedCollection               = PublishTask.getCommentsFromPublishedCollection,
+	deletePhotosFromPublishedCollection              = PublishTask.deletePhotosFromPublishedCollection,
+	shouldDeletePhotosFromServiceOnDeleteFromCatalog = PublishTask.shouldDeletePhotosFromServiceOnDeleteFromCatalog,
 
 	-- PublishService processing functions
 	didCreateNewPublishService                       = PublishTask.didCreateNewPublishService,
 	didUpdatePublishService                          = PublishTask.didUpdatePublishService,
 	shouldDeletePublishService                       = PublishTask.shouldDeletePublishService,
 	willDeletePublishService                         = PublishTask.willDeletePublishService,
-	canAddCommentsToService                          = PublishTask.canAddCommentsToService,
-	shouldDeletePhotosFromServiceOnDeleteFromCatalog = PublishTask.shouldDeletePhotosFromServiceOnDeleteFromCatalog,
 
 	-- Published Collections / CollectionSets Processing functions
 	getCollectionBehaviorInfo                        = PublishTask.getCollectionBehaviorInfo,

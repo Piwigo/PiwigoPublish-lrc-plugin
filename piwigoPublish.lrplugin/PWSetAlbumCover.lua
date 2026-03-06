@@ -20,6 +20,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ]]
 
+---@diagnostic disable: undefined-global
+
 --*******************************************
 local function SetAlbumCover()
     -- alternative routine that does not require a publish service to be selected
@@ -78,12 +80,11 @@ local function SetAlbumCover()
             "warning")
         return false
     end
-    if not catId then
-        LrDialogs.message("SetAlbumCover - Can't find Piwigo album ID for remoteId for this publish collection", "",
-            "warning")
+
+    if not useSource then
+        LrDialogs.message("SetAlbumCover - Can't find publish collection source", "", "warning")
         return false
     end
-
 
     -- find publised photo in this collection / set
     local thisPubPhoto = utils.findPhotoInCollectionSet(useSource, selPhoto)

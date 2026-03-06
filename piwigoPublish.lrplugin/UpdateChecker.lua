@@ -23,6 +23,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ]]
 
+---@diagnostic disable: undefined-global
+
 local LrHttp = import 'LrHttp'
 local LrTasks = import 'LrTasks'
 local LrDialogs = import 'LrDialogs'

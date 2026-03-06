@@ -19,6 +19,7 @@ piwigoPublish.lrplugin/PiwigoHelper.lua
 # Other files
 *.bak
 .claude/
+claude.md
 __pycache__/
 cat layout.odt
 deploy.sh
