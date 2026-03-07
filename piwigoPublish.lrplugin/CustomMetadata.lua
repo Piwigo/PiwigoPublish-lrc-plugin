@@ -1,5 +1,5 @@
 --[[
-   
+
     CustomeMetadata.lua
 
     Copyright (C) 2024 Fiona Boston <fiona@fbphotography.uk>.
@@ -23,7 +23,7 @@
 
 
 return {
-    schemaVersion = 5,
+    schemaVersion = 6,
     metadataFieldsForPhotos = {
 
         {
@@ -88,6 +88,15 @@ return {
             id = 'pwCommentSync',
             title = 'pwCommentSync',
             version = 1
+        },
+        {
+            dataType = 'string',
+            readOnly = true,
+            searchable = false,
+            browsable = false,
+            id = 'pwVideoPreset',
+            title = "Video Preset",
+            version = 6
         },
     }
 }
