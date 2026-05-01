@@ -337,10 +337,13 @@ function PublishTask.processRenderedPhotos(functionContext, exportContext)
         log:info("PublishTask - pre-scan: " .. batchVideoCount .. " video(s) detected in batch of " .. batchTotalCount)
     end
 
-    local videoUploadBlocked, serverMaxBytes, companionAvailable, shouldAbort =
-        vtk_core.checkServerSupport(propertyTable, videoPhotos, batchVideoCount, batchTotalCount,
-                                    exportSession, publishService)
-    if shouldAbort then return end
+    local videoUploadBlocked, serverMaxBytes, companionAvailable, shouldAbort = false, nil, false, false
+    if batchVideoCount > 0 then
+        videoUploadBlocked, serverMaxBytes, companionAvailable, shouldAbort =
+            vtk_core.checkServerSupport(propertyTable, videoPhotos, batchVideoCount, batchTotalCount,
+                                        exportSession, publishService)
+        if shouldAbort then return end
+    end
 
     -- -----------------------------------------------------------------------
     -- Phase 2C/2D — Video Toolkit (delegated to vtk_core)

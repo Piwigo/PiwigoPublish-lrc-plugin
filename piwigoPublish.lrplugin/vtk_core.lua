@@ -129,11 +129,12 @@ function vtk_core.checkServerSupport(propertyTable, videoPhotos, batchVideoCount
         table.insert(warnings, "- Cannot verify server video support (connection issue).")
     elseif not videoSupport.companionAvailable then
         companionAvailable = false
-        videoUploadBlocked = true
-        table.insert(warnings, "- The 'Lightroom Companion' plugin is not installed on your Piwigo server.")
-        table.insert(warnings, "  Without it, video upload cannot be authorized.")
-        table.insert(warnings, "\nInstall and activate the 'Lightroom Companion' plugin in Piwigo,")
-        table.insert(warnings, "then use 'Server Info' > 'Enable Video Support' to configure the server.")
+        -- Non-blocking: fall back to direct upload via standard Piwigo API.
+        -- Companion-specific enrichment (thumbnail, dimensions, codec metadata) is skipped.
+        table.insert(warnings, "- 'Lightroom Companion' plugin is not installed on this Piwigo server.")
+        table.insert(warnings, "  Videos will be uploaded without thumbnail and dimension metadata.")
+        table.insert(warnings, "  The server must already be configured to accept video file types.")
+        table.insert(warnings, "\nInstall 'Lightroom Companion' on Piwigo for full video support.")
     else
         companionAvailable = true
         local cfg = videoSupport.serverConfig
