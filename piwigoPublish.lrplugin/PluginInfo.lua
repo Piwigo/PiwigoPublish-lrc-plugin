@@ -30,5 +30,4 @@ return {
     endDialog = PluginInfoDialogSections.endDialog,
 
     sectionsForTopOfDialog = PluginInfoDialogSections.sectionsForTopOfDialog,
-    --sectionsForBottomOfDialog = PluginInfoDialogSections.sectionsForBottomOfDialog,
 }

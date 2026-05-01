@@ -37,8 +37,8 @@ return {
 -- define custom metadata data for this plugin
     PublishSettings = {
         publishMetadata = {
-            { id = 'myCustomStatus', title = 'Status', type = 'string' },
-            { id = 'syncToken', title = 'Token', type = 'string' },
+            { id = 'myCustomStatus', title = "Status", type = 'string' },
+            { id = 'syncToken', title = "Token", type = 'string' },
         },
     },
     

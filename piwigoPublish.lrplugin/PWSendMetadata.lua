@@ -20,6 +20,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ]]
 
+---@diagnostic disable: undefined-global
+
 --*******************************************
 local function SendMetadata()
     log:info("SendMetadata")
@@ -62,6 +64,11 @@ local function SendMetadata()
     end
     if not publishSettings then
         LrDialogs.message("SendMetadata - Can't find publish settings for this publish collection", "", "warning")
+        return false
+    end
+
+    if not useSource then
+        LrDialogs.message("SendMetadata - Can't find publish collection source", "", "warning")
         return false
     end
 
