@@ -1,4 +1,11 @@
 # Changelog
+## [20260327.35]
+### Fixed
+Plugin extra options consolidated to single menu item in Library -> Plug-in Extras -> Piwigo Publisher Extra Options
+
+### Added
+Custom Sort Order optionally synchronised to Piwigo when used in LrC. Requires Photos sort order to be set to Manual on album in Piwigo. A Piwigo plugin is under development to automate this setting - in the meantime needs to be set in Piwigo Administration -> Albums -> Edit album
+
 ## [20260305.34]
 ### Fixed
 Fix #45 Unable to remove photos from Piwigo

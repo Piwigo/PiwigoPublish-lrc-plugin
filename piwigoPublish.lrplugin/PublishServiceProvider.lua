@@ -39,39 +39,39 @@ return {
 
 
 	-- Behaviour Settings
-	
+
 	-- Piwigo supports .jpg, .jpeg, .png, .gif, .webp, .heic
 	-- of these, LrC can only export JPEG and PNG, so we limit to those formats in the publish dialog.
-	allowFileFormats = { "JPEG", "PNG"},
-	
+	allowFileFormats = { "JPEG", "PNG" },
 	allowColorSpaces = nil,
 	canExportVideo = false,
-	supportsCustomSortOrder = false,
+	supportsCustomSortOrder = true,
 	hidePrintResolution = true,
 	supportsIncrementalPublish = 'only', -- plugin only visible in publish services, not export
 
 
 	-- these fields are stored in the publish service settings by Lightroom
-	exportPresetFields = {
-		{ key = 'host',                  	default = '' },
-		{ key = "userName",              	default = '' },
-		{ key = "userPW",                	default = '' },
-		{ key = "KwFullHierarchy",       	default = true },
-		{ key = "KwSynonyms",            	default = true },
-		{ key = "mdTitle",              	default = "{{title}}" },
-		{ key = "mdDescription",         	default = "{{caption}}" },
-		{ key = "syncAlbumDescriptions", 	default = false },
-		{ key = "syncCommentsPublish",   	default = true },
-		{ key = "syncCommentsPubOnly",   	default = false },
-		{ key = "PWP_albumAssociation", 	default = true },
-		{ key = "PWP_customAlbumSettings", 	default = false },
-		{ key = "KwFilterExclude",       	default = '' },
-		{ key = "KwFilterInclude",       	default = '' },
-		
-		
+	exportPresetFields                  = {
+		{ key = 'host',                    default = '' },
+		{ key = "userName",                default = '' },
+		{ key = "userPW",                  default = '' },
+		{ key = "KwFullHierarchy",         default = true },
+		{ key = "KwSynonyms",              default = true },
+		{ key = "mdTitle",                 default = "{{title}}" },
+		{ key = "mdDescription",           default = "{{caption}}" },
+		{ key = "syncAlbumDescriptions",   default = false },
+		{ key = "syncPhotoSortOrder",      default = false },
+		{ key = "syncCommentsPublish",     default = true },
+		{ key = "syncCommentsPubOnly",     default = false },
+		{ key = "PWP_albumAssociation",    default = true },
+		{ key = "PWP_customAlbumSettings", default = false },
+		{ key = "KwFilterExclude",         default = '' },
+		{ key = "KwFilterInclude",         default = '' },
+
+
 	},
 
-	metadataThatTriggersRepublish = function(publishSettings, photoId, fieldName)
+	metadataThatTriggersRepublish       = function(publishSettings, photoId, fieldName)
 		-- This function is called by Lightroom to determine whether a metadata
 		-- change should trigger republishing.
 		local triggerFields = {
@@ -88,21 +88,21 @@ return {
 	-- showSections = { 'fileNaming', 'fileSettings', etc... }
 
 	-- UI Settings
-	small_icon                                       = '/icons/icon_small.png',
-	titleForPublishedCollection                      = 'Piwigo album',
-	titleForPublishedCollectionSet                   = 'Piwigo album (Set for sub-albums)',
-	titleForPublishedSmartCollection                 = 'Piwigo album (Smart collection)',
-	titleForGoToPublishedCollection                  = "Go to Album in Piwigo",
-	titleForGoToPublishedPhoto                       = "Go to Photo in Piwigo",
+	small_icon                          = '/icons/icon_small.png',
+	titleForPublishedCollection         = 'Piwigo album',
+	titleForPublishedCollectionSet      = 'Piwigo album (Set for sub-albums)',
+	titleForPublishedSmartCollection    = 'Piwigo album (Smart collection)',
+	titleForGoToPublishedCollection     = "Go to Album in Piwigo",
+	titleForGoToPublishedPhoto          = "Go to Photo in Piwigo",
 	-- titleForPublishedCollectionSet_standalone = ""
 	-- titleForPublishedCollection_standalone = ""
 	-- titleForPublishedSmartCollection_standalone = ""
 
 	-- Images Processing function
-	processRenderedPhotos                            = PublishTaskImageProcessing.processRenderedPhotos,
-	addCommentToPublishedPhoto                       = PublishTaskImageProcessing.addCommentToPublishedPhoto,
-	getCommentsFromPublishedCollection               = PublishTaskImageProcessing.getCommentsFromPublishedCollection,
-	deletePhotosFromPublishedCollection              = PublishTaskImageProcessing.deletePhotosFromPublishedCollection,
+	processRenderedPhotos               = PublishTaskImageProcessing.processRenderedPhotos,
+	addCommentToPublishedPhoto          = PublishTaskImageProcessing.addCommentToPublishedPhoto,
+	getCommentsFromPublishedCollection  = PublishTaskImageProcessing.getCommentsFromPublishedCollection,
+	deletePhotosFromPublishedCollection = PublishTaskImageProcessing.deletePhotosFromPublishedCollection,
 
 
 	-- PublishService processing functions
@@ -122,7 +122,7 @@ return {
 	renamePublishedCollection                        = PublishTask.renamePublishedCollection,
 	reparentPublishedCollection                      = PublishTask.reparentPublishedCollection,
 	deletePublishedCollection                        = PublishTask.deletePublishedCollection,
-	imposeSortOrderOnPublishedCollection			 = PublishTask.imposeSortOrderOnPublishedCollection,
+	imposeSortOrderOnPublishedCollection             = PublishTask.imposeSortOrderOnPublishedCollection,
 	validatePublishedCollectionName                  = PublishTask.validatePublishedCollectionName,
 
 	-- view on Piwigo Options

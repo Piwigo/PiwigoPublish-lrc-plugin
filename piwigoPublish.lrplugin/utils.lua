@@ -211,6 +211,16 @@ function utils.toPositiveNumber(value)
 end
 
 -- *************************************************
+-- Lightroom can pass property tables wrapped as { ["< contents >"] = {...} }.
+-- Return effective settings table plus the original owner table.
+function utils.getEffectivePropertyTable(propertyTable)
+    if type(propertyTable) == "table" and type(propertyTable["< contents >"]) == "table" then
+        return propertyTable["< contents >"], propertyTable
+    end
+    return propertyTable, propertyTable
+end
+
+-- *************************************************
 -- Compare effective Lightroom resize-related export settings and report first difference.
 function utils.resizeSettingsDiffer(originalSettings, newSettings)
     local keyDefs = {

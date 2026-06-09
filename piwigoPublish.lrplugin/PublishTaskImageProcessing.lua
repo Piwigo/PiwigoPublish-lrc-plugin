@@ -35,9 +35,8 @@ end
 
 -- ************************************************
 local function resolveSourceSettings(propertyTable)
-    local sourceSettings = propertyTable
-    if type(propertyTable) == "table" and type(propertyTable["< contents >"]) == "table" then
-        sourceSettings = propertyTable["< contents >"]
+    local sourceSettings, owner = utils.getEffectivePropertyTable(propertyTable)
+    if owner ~= sourceSettings then
         log:info("runCustomRenderForCollection - using propertyTable['< contents >'] as export settings source")
     end
     return sourceSettings
@@ -201,6 +200,7 @@ end
 -- ************************************************
 local function runCustomRenderForCollection(customRenderInfo, collectionSettings, rendition, filePath)
     -- run custom render using precomputed custom render info
+    log:info("runCustomRenderForCollection ")
     local anonymisedCustomRenderInfo = {
         sourceSettings = utils.anonymisePropertyTable(customRenderInfo.sourceSettings),
         overrideSettings = utils.anonymisePropertyTable(customRenderInfo.overrideSettings),
@@ -210,7 +210,7 @@ local function runCustomRenderForCollection(customRenderInfo, collectionSettings
         newValue = customRenderInfo.newValue,
         customEnabled = customRenderInfo.customEnabled,
     }
-    log:info("runCustomRenderForCollection - customRenderInfo:" .. utils.serialiseVar(anonymisedCustomRenderInfo))
+    -- log:info("runCustomRenderForCollection - customRenderInfo:" .. utils.serialiseVar(anonymisedCustomRenderInfo))
     --[[
     utils.dumpPropertyTableToDesktop(customRenderInfo.sourceSettings, collectionSettings,"before custom resize overrides")
     log:info("Custom album export settings enabled, need to re-render photo with custom settings before upload")
@@ -428,7 +428,6 @@ function PublishTaskImageProcessing.processRenderedPhotos(functionContext, expor
     else
         serviceState = PWStatusManager.getServiceState(publishService)
     end
-    log:info("PublishTaskImageProcessing.processRenderedPhotos - serviceState " .. utils.serialiseVar(serviceState))
     if serviceState.isCloningSync and serviceState.isCloningSync == true then
         PWStatusManager.setisCloningSync(publishService, false)
         -- use minimal render photos for smart collection cloning
@@ -645,6 +644,9 @@ function PublishTaskImageProcessing.processRenderedPhotos(functionContext, expor
             callStatus = {}
             local filePath = pathOrMessage
             local initialRenderExt = getPathExtension(filePath)
+            -- code to try and catch bug that sometimes generates a TIFF file instead of JPEG/PNG for the initial render, 
+            --  which then causes upload to fail as Piwigo doesn't accept TIFF files, this is just to log details of the 
+            -- render settings in these cases to try and identify the root cause of the issue
             if isTiffExtension(initialRenderExt) then
                 log:warn("Initial render produced ." .. initialRenderExt .. " file: " .. tostring(filePath) ..
                     " - format snapshot: " .. utils.serialiseVar(buildFormatSnapshot(sourceSettingsForDiagnostics)))

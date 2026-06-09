@@ -1064,6 +1064,9 @@ end
 function PiwigoAPI.ConnectionChange(propertyTable)
     log:info('PublishDialogSections.ConnectionChange')
     propertyTable.ConStatus = "Not Connected"
+    propertyTable.ServerPluginStatus = "Server plugin: unknown"
+    propertyTable.ServerPluginAvailable = false
+    propertyTable.piwigoPublishServerPluginAvailable = nil
     propertyTable.Connected = false
     propertyTable.ConCheck = true
     propertyTable.SessionCookie = ""
@@ -1071,6 +1074,7 @@ function PiwigoAPI.ConnectionChange(propertyTable)
     propertyTable.cookieHeader = nil
     propertyTable.userStatus = ""
     propertyTable.token = ""
+    propertyTable.piwigoPublishServerPluginAvailable = nil
 
     if (propertyTable.savedHost ~= propertyTable.host) or (propertyTable.savedUsername ~= propertyTable.userName) then
         propertyTable.unsavedConnectionChanges = true
@@ -1309,8 +1313,8 @@ function PiwigoAPI.pwConnect(propertyTable)
     } }
 
     local httpResponse, httpHeaders = LrHttp.post(propertyTable.pwurl, body, headers)
-
-    if (httpHeaders.status == 201) or (httpHeaders.status == 200) then
+    local httpOK = httpHeaders and (httpHeaders.status >= 200 and httpHeaders.status < 300)
+    if httpOK then
         -- successful connection to Piwigo
         -- Now check login result
         -- Decode JSON safely
@@ -1379,6 +1383,17 @@ function PiwigoAPI.pwConnect(propertyTable)
         return false
     end
 
+    -- now check if piwigo publish plugin is available
+    rv = PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable, true)
+    if not rv then
+        log:info("PiwigoAPI.pwConnect - Piwigo publish plugin not available")
+        -- piwigo server side plugin not available - warn user but continue as they can still use publish service just without some features
+        -- LrDialogs.message("Piwigo publish plugin not available","Some features of this plugin require the Piwigo publish plugin to be installed and activated on your Piwigo server. You can still use the publish service without the plugin but some features will not be available. Please check the plugin documentation for more details.")
+    end
+    propertyTable.ServerPluginAvailable = rv
+    propertyTable.ServerPluginStatus = rv
+        and "Server plugin: piwigoPublish-lrc-plugin detected"
+        or "Server plugin: not detected"
 
     -- get list of all tagIDs
     rv, propertyTable.tagTable = PiwigoAPI.getTagList(propertyTable)
@@ -1959,6 +1974,7 @@ function PiwigoAPI.pwCategoriesSetinfo(propertyTable, info, metaData)
     local name = metaData.name or ""
     local description = metaData.description or ""
     local status = metaData.status or "public"
+    local imageOrder = metaData.imageOrder or ""
 
     local params = { {
         name = "method",
@@ -1967,12 +1983,15 @@ function PiwigoAPI.pwCategoriesSetinfo(propertyTable, info, metaData)
         name = "category_id",
         value = tostring(remoteId)
     }, {
-        name = "name",
-        value = name
-    }, {
         name = "pwg_token",
         value = propertyTable.token
     } }
+    if name ~= "" then
+        table.insert(params, {
+            name = "name",
+            value = name
+        })
+    end
     if propertyTable.syncAlbumDescriptions then
         table.insert(params, {
             name = "comment",
@@ -1983,6 +2002,17 @@ function PiwigoAPI.pwCategoriesSetinfo(propertyTable, info, metaData)
         name = "status",
         value = status
     })
+
+    if imageOrder ~= "" then
+        if PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable) then
+            table.insert(params, {
+                name = "image_order",
+                value = imageOrder
+            })
+        else
+            log:info("PiwigoAPI.pwCategoriesSetinfo - image_order requested but server plugin not available")
+        end
+    end
 
     local httpResponse, httpHeaders = LrHttp.postMultipart(propertyTable.pwurl, params, {
         headers = {
@@ -2013,6 +2043,86 @@ function PiwigoAPI.pwCategoriesSetinfo(propertyTable, info, metaData)
         log:info("PiwigoAPI.pwCategoriesSetinfo - httpResponse\n" .. utils.serialiseVar(httpResponse))
         callStatus.status = false
         callStatus.statusMsg = "Category " .. tostring(remoteId) .. " - " .. (body.message or "")
+    end
+
+    return callStatus
+end
+
+-- *************************************************
+-- Calls the server-side companion plugin's dedicated method to set image_order
+-- for an album. Unlike pwCategoriesSetinfo, this method is always explicitly
+-- handled by the plugin, so success guarantees the DB was updated.
+function PiwigoAPI.pwCategoriesSetSortOrder(propertyTable, categoryId, imageOrder)
+    log:info("PiwigoAPI.pwCategoriesSetSortOrder - categoryId=" .. tostring(categoryId) ..
+        " imageOrder=" .. tostring(imageOrder))
+    local callStatus = { status = false, statusMsg = "" }
+
+    if not propertyTable.Connected then
+        local rv = PiwigoAPI.login(propertyTable)
+        if not rv then
+            callStatus.statusMsg = "PiwigoAPI.pwCategoriesSetSortOrder - cannot connect to piwigo"
+            return callStatus
+        end
+    end
+
+    local params = {
+        { name = "method",      value = "pwg.piwigopublish.categories.setSortOrder" },
+        { name = "category_id", value = tostring(categoryId) },
+        { name = "image_order", value = tostring(imageOrder) },
+        { name = "pwg_token",   value = propertyTable.token },
+    }
+
+
+    local httpResponse, httpHeaders = LrHttp.postMultipart(propertyTable.pwurl, params, {
+        headers = {
+            field = "Cookie",
+            value = propertyTable.SessionCookie
+        }
+    })
+
+    local body
+    if httpResponse then
+        body = JSON:decode(httpResponse)
+    end
+
+    if httpHeaders.status == 200 or httpHeaders.status == 201 then
+        if body and body.stat == "ok" then
+            callStatus.status = true
+            log:info("PiwigoAPI.pwCategoriesSetSortOrder - success, image_order=" ..
+                tostring(body.result and body.result.image_order or imageOrder))
+            return callStatus
+        end
+    end
+
+    local errCode = body and tostring(body.err or "") or ""
+    local errMsg = body and tostring(body.message or "") or ""
+    local methodMissing = (errCode == "501") or string.find(string.lower(errMsg), "method name is not valid", 1, true)
+
+    log:info("PiwigoAPI.pwCategoriesSetSortOrder - params \n" .. utils.serialiseVar(params))
+    log:info("PiwigoAPI.pwCategoriesSetSortOrder - httpHeaders\n" .. utils.serialiseVar(httpHeaders))
+    log:info("PiwigoAPI.pwCategoriesSetSortOrder - httpResponse\n" .. utils.serialiseVar(httpResponse))
+
+    if methodMissing then
+        callStatus.status = false
+        callStatus.statusMsg =
+            "Server plugin method pwg.categories.setSortOrder is unavailable. " ..
+            "Set album sort order manually in Piwigo (Album -> Edit -> Sort order: Manual)."
+        log:info("PiwigoAPI.pwCategoriesSetSortOrder - " .. callStatus.statusMsg)
+
+        return callStatus
+    end
+
+
+
+    callStatus.status = false
+    if httpHeaders.status == 200 or httpHeaders.status == 201 then
+        callStatus.statusMsg = "pwg.categories.setSortOrder failed: " ..
+            tostring((body and (body.message or body.err)) or "unknown error")
+        log:info("PiwigoAPI.pwCategoriesSetSortOrder - " .. callStatus.statusMsg)
+    else
+        callStatus.statusMsg = "HTTP " .. tostring(httpHeaders.status) ..
+            " calling pwg.categories.setSortOrder"
+        log:info("PiwigoAPI.pwCategoriesSetSortOrder - " .. callStatus.statusMsg)
     end
 
     return callStatus
@@ -2551,12 +2661,77 @@ function PiwigoAPI.deletePhoto(propertyTable, pwCatID, pwImageID, callStatus)
 end
 
 -- *************************************************
-function PiwigoAPI.associateImages(propertyTable)
-end
+function PiwigoAPI.pwImagesSetRank(publishSettings, categoryId, imageIdSequence)
+    -- Set the display rank (sort order) of images within a Piwigo album
+    -- pwg.images.setRank expects image_id as an array (WS_PARAM_FORCE_ARRAY).
+    -- We therefore send repeated image_id[] form fields in the order Lightroom provides.
 
--- *************************************************
-function PiwigoAPI.importPublishService(propertyTable)
-    -- select and import existing publish service
+    log:info("PiwigoAPI.pwImagesSetRank - category " .. tostring(categoryId) ..
+        ", " .. #imageIdSequence .. " images")
+
+    local callStatus = {}
+    callStatus.status = false
+    callStatus.statusMsg = ""
+
+    if not categoryId or #imageIdSequence == 0 then
+        callStatus.statusMsg = "PiwigoAPI.pwImagesSetRank - missing categoryId or empty sequence"
+        return callStatus
+    end
+
+    local rv
+    -- check connection to piwigo
+    if not (publishSettings.Connected) then
+        rv = PiwigoAPI.login(publishSettings)
+        if not rv then
+            callStatus.statusMsg = "PiwigoAPI.pwImagesSetRank - cannot connect to piwigo"
+            return callStatus
+        end
+    end
+
+    -- check role is admin level
+    if publishSettings.userStatus ~= "webmaster" then
+        callStatus.statusMsg = "PiwigoAPI.pwImagesSetRank - User needs webmaster role on piwigo gallery at " ..
+            publishSettings.host .. " to set photo sort order"
+        return callStatus
+    end
+
+    local params = { {
+        name = "method",
+        value = "pwg.images.setRank"
+    }, {
+        name = "category_id",
+        value = tostring(categoryId)
+    } }
+
+    -- Add ordered image ids as array entries: image_id[]=123&image_id[]=456...
+    local validIdCount = 0
+    for _, id in ipairs(imageIdSequence) do
+        local n = tonumber(id)
+        if n and n > 0 then
+            table.insert(params, {
+                name = "image_id[]",
+                value = tostring(math.floor(n))
+            })
+            validIdCount = validIdCount + 1
+        end
+    end
+
+    if validIdCount == 0 then
+        callStatus.statusMsg = "PiwigoAPI.pwImagesSetRank - no valid positive image IDs in sequence"
+        return callStatus
+    end
+
+    local postResponse = PiwigoAPI.httpPostMultiPart(publishSettings, params)
+
+    if postResponse.status then
+        callStatus.status = true
+        log:info("PiwigoAPI.pwImagesSetRank - success for category " .. tostring(categoryId))
+    else
+        callStatus.statusMsg = "PiwigoAPI.pwImagesSetRank - " .. (postResponse.statusMsg or "unknown error")
+        log:info(callStatus.statusMsg)
+    end
+
+    return callStatus
 end
 
 -- *************************************************
@@ -3101,6 +3276,179 @@ function PiwigoAPI.createHeadersForMultipartPut(propertyTable, boundary, length)
 end
 
 -- *************************************************
+local function extractPluginsFromResponse(response)
+    if not response or response.status ~= "ok" or not response.response or not response.response.result then
+        return nil
+    end
+
+    local responseResult = response.response.result
+    if type(responseResult) ~= "table" then
+        return nil
+    end
+    if responseResult.plugins and type(responseResult.plugins) == "table" then
+        return responseResult.plugins
+    end
+    if #responseResult > 0 then
+        return responseResult
+    end
+    return nil
+end
+
+-- *************************************************
+local function ensureWsUrlFromHost(effectivePT, originalPT)
+    if not effectivePT then
+        return false
+    end
+    if not utils.nilOrEmpty(effectivePT.pwurl) then
+        return true
+    end
+    if utils.nilOrEmpty(effectivePT.host) then
+        return false
+    end
+
+    effectivePT.pwurl = tostring(effectivePT.host) .. "/ws.php?format=json"
+    if originalPT and originalPT ~= effectivePT then
+        originalPT.pwurl = effectivePT.pwurl
+    end
+    log:info("PiwigoAPI.ensureWsUrlFromHost - reconstructed pwurl from host")
+    return true
+end
+
+-- *************************************************
+function PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable, forceRefresh)
+    -- Detect whether the server-side companion plugin is installed/active.
+    local effectivePT, originalPT = utils.getEffectivePropertyTable(propertyTable)
+
+    if not forceRefresh then
+        if effectivePT.piwigoPublishServerPluginAvailable ~= nil then
+            return effectivePT.piwigoPublishServerPluginAvailable
+        end
+        if originalPT ~= effectivePT and originalPT.piwigoPublishServerPluginAvailable ~= nil then
+            return originalPT.piwigoPublishServerPluginAvailable
+        end
+    end
+    log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - checking server plugin availability with forceRefresh=" ..
+        tostring(forceRefresh))
+
+    local pluginParams = { {
+        name = "method",
+        value = "pwg.plugins.getList"
+    } }
+
+    if not ensureWsUrlFromHost(effectivePT, originalPT) then
+        log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - missing host/pwurl in propertyTable")
+        effectivePT.piwigoPublishServerPluginAvailable = false
+        if originalPT ~= effectivePT then
+            originalPT.piwigoPublishServerPluginAvailable = false
+        end
+        return false
+    end
+
+    -- Some Lightroom callbacks pass a reduced publish settings table that has host/user
+    -- but omits runtime session fields (Connected/cookieHeader). Re-login here so the
+    -- capability probe can still call pwg.plugins.getList reliably.
+    if (not effectivePT.Connected) or utils.nilOrEmpty(effectivePT.cookieHeader) then
+        if not utils.nilOrEmpty(effectivePT.userName) and not utils.nilOrEmpty(effectivePT.userPW) then
+            local loginOk = PiwigoAPI.login(effectivePT)
+            if originalPT and originalPT ~= effectivePT then
+                originalPT.Connected = effectivePT.Connected
+                originalPT.cookieHeader = effectivePT.cookieHeader
+                originalPT.SessionCookie = effectivePT.SessionCookie
+                originalPT.cookies = effectivePT.cookies
+                originalPT.userStatus = effectivePT.userStatus
+                originalPT.token = effectivePT.token
+                originalPT.pwVersion = effectivePT.pwVersion
+            end
+            if not loginOk then
+                log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - login failed while checking plugin capability")
+                effectivePT.piwigoPublishServerPluginAvailable = false
+                if originalPT ~= effectivePT then
+                    originalPT.piwigoPublishServerPluginAvailable = false
+                end
+                return false
+            end
+        else
+            log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - missing credentials for capability check")
+            effectivePT.piwigoPublishServerPluginAvailable = false
+            if originalPT ~= effectivePT then
+                originalPT.piwigoPublishServerPluginAvailable = false
+            end
+            return false
+        end
+    end
+
+    local headers = {}
+    if effectivePT.cookieHeader ~= nil then
+        headers = {
+            ["Cookie"] = effectivePT.cookieHeader
+        }
+    end
+
+    local getResponse = httpGet(effectivePT.pwurl, pluginParams, headers)
+    local plugins = extractPluginsFromResponse(getResponse)
+
+    effectivePT.piwigoPublishServerPluginAvailable = false
+    if originalPT ~= effectivePT then
+        originalPT.piwigoPublishServerPluginAvailable = false
+    end
+    if not plugins then
+        return false
+    end
+
+    for _, plugin in ipairs(plugins) do
+        if type(plugin) == "table" then
+            local pluginId = tostring(plugin.id or "")
+            local pluginName = tostring(plugin.name or "")
+            local idLower = pluginId:lower()
+            local nameLower = pluginName:lower()
+            if idLower == "piwigopublish-lrc-plugin" or idLower:find("piwigopublish") or
+                nameLower:find("piwigopublish") then
+                local state = plugin.state and tostring(plugin.state):lower() or "unknown"
+                local available = (state == "active" or state == "")
+                effectivePT.piwigoPublishServerPluginAvailable = available
+                if originalPT ~= effectivePT then
+                    originalPT.piwigoPublishServerPluginAvailable = available
+                end
+                log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - detected id=" .. pluginId ..
+                    ", name=" .. pluginName .. ", state=" .. state)
+                break
+            end
+        end
+    end
+
+    return effectivePT.piwigoPublishServerPluginAvailable
+end
+
+-- *************************************************
+function PiwigoAPI.refreshServerPluginStatus(propertyTable, forceRefresh)
+    local effectivePT, originalPT = utils.getEffectivePropertyTable(propertyTable)
+
+    if not effectivePT.Connected then
+        effectivePT.ServerPluginAvailable = false
+        effectivePT.ServerPluginStatus = "Server plugin: unavailable (not connected)"
+        if originalPT ~= effectivePT then
+            originalPT.ServerPluginAvailable = false
+            originalPT.ServerPluginStatus = "Server plugin: unavailable (not connected)"
+        end
+        return false
+    end
+
+    local available = PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable, forceRefresh)
+    effectivePT.ServerPluginAvailable = available
+    if available then
+        effectivePT.ServerPluginStatus = "Server plugin: piwigoPublish-lrc-plugin detected"
+    else
+        effectivePT.ServerPluginStatus = "Server plugin: not detected"
+    end
+    if originalPT ~= effectivePT then
+        originalPT.ServerPluginAvailable = effectivePT.ServerPluginAvailable
+        originalPT.ServerPluginStatus = effectivePT.ServerPluginStatus
+    end
+
+    return available
+end
+
+-- *************************************************
 function PiwigoAPI.getServerVideoSupport(propertyTable)
     -- Check server capabilities for video support
     -- Returns { status, piwigoVersion, videoJsInstalled, videoJsActive, serverInfos }
@@ -3137,21 +3485,11 @@ function PiwigoAPI.getServerVideoSupport(propertyTable)
     end
     local getResponse = httpGet(propertyTable.pwurl, pluginParams, headers)
     if getResponse.status == "ok" and getResponse.response and getResponse.response.result then
-        -- pwg.plugins.getList may return plugins under .plugins key or directly as result
         local responseResult = getResponse.response.result
         log:info("PiwigoAPI.getServerVideoSupport - plugin list response keys: " ..
             utils.serialiseVar(responseResult))
 
-        -- Try to find the plugins array in various possible structures
-        local plugins = nil
-        if type(responseResult) == "table" then
-            if responseResult.plugins and type(responseResult.plugins) == "table" then
-                plugins = responseResult.plugins
-            elseif #responseResult > 0 then
-                -- result is directly an array of plugins
-                plugins = responseResult
-            end
-        end
+        local plugins = extractPluginsFromResponse(getResponse)
 
         if plugins then
             for _, plugin in ipairs(plugins) do

@@ -82,61 +82,50 @@ end
 
 -- ************************************************
 function PublishTask.imposeSortOrderOnPublishedCollection(publishSettings, info, remoteIdSequence)
-    -- This callback is called by Lightroom for smart collections.
-    -- It allows you to detect published photos that no longer meet the criteria and mark them for
-    -- deletion.
+    -- Keep this callback intentionally minimal and rely only on fields that are
+    -- consistently present in Lightroom's callback payload.
     log:info("PublishTask.imposeSortOrderOnPublishedCollection")
 
-    local validSequence = {}
-    local publishedCollection = info.publishedCollection
+    local finalSequence = remoteIdSequence or {}
 
-    if not publishedCollection then
-        return nil
+    local shouldSync = false
+    local collectionSettings = (info and info.collectionSettings) or {}
+    local override = collectionSettings.syncSortOrderOverride or "default"
+    log:info("PublishTask.imposeSortOrderOnPublishedCollection - syncSortOrderOverride: " .. override)
+    if override == "always" then
+        shouldSync = true
+    elseif override == "never" then
+        shouldSync = false
+    else
+        shouldSync = publishSettings.syncPhotoSortOrder or false
     end
 
-    -- Check if it is a smart collection
-    if not publishedCollection:isSmartCollection() then
-        return nil
-    end
-
-    -- Retrieve photos currently in the smart collection (according to criteria)
-    local currentPhotos = publishedCollection:getPhotos()
-    local currentPhotoIds = {}
-    for _, photo in ipairs(currentPhotos) do
-        currentPhotoIds[photo.localIdentifier] = true
-    end
-
-    -- Browse the remoteIds of published photos
-    -- remoteIdSequence contains the remoteIds in the current order
-    local publishedPhotos = publishedCollection:getPublishedPhotos()
-    local remoteIdToPhoto = {}
-    for _, pubPhoto in ipairs(publishedPhotos) do
-        local remoteId = pubPhoto:getRemoteId()
-        if remoteId then
-            remoteIdToPhoto[remoteId] = pubPhoto
-        end
-    end
-
-    -- Build the valid sequence: only photos that still meet the criteria
-    for _, remoteId in ipairs(remoteIdSequence) do
-        local pubPhoto = remoteIdToPhoto[remoteId]
-        if pubPhoto then
-            local lrPhoto = pubPhoto:getPhoto()
-            if lrPhoto and currentPhotoIds[lrPhoto.localIdentifier] then
-                -- The photo still meets the criteria, keep it.
-                table.insert(validSequence, remoteId)
+    if shouldSync and #finalSequence > 0 then
+        local categoryId = (info and (info.remoteCollectionId or info.remoteId)) or nil
+        if categoryId then
+            log:info("PublishTask.imposeSortOrderOnPublishedCollection - syncing sort order for category " ..
+                tostring(categoryId) .. ", " .. #finalSequence .. " photos")
+            -- If the companion server plugin is available, force album sorting to use rank first.
+            if PiwigoAPI.hasPiwigoPublishServerPlugin(publishSettings, false) then
+                local orderStatus = PiwigoAPI.pwCategoriesSetSortOrder(publishSettings, categoryId, "rank ASC")
+                if not orderStatus.status then
+                    log:info("PublishTask.imposeSortOrderOnPublishedCollection - unable to set image_order: " ..
+                        (orderStatus.statusMsg or "unknown error"))
+                end
             end
-            -- If the photo is no longer in currentPhotoIds, it will be marked for deletion because
-            -- its remoteId will not be in validSequence.
+
+            local callStatus = PiwigoAPI.pwImagesSetRank(publishSettings, categoryId, finalSequence)
+            if not callStatus.status then
+                log:info("PublishTask.imposeSortOrderOnPublishedCollection - setRank failed: " ..
+                    (callStatus.statusMsg or "unknown error"))
+            end
+        else
+            log:info("PublishTask.imposeSortOrderOnPublishedCollection - no remoteId for collection, skipping sort sync")
         end
     end
 
-    log:info("PublishTask.imposeSortOrderOnPublishedCollection - " ..
-        #remoteIdSequence .. " published, " ..
-        #validSequence .. " still match criteria, " ..
-        (#remoteIdSequence - #validSequence) .. " to delete")
-
-    return validSequence
+    -- Return Lightroom's computed order unchanged.
+    return finalSequence
 end
 
 -- ************************************************
@@ -207,33 +196,13 @@ end
 local function buildCommonCollectionUI(f, bind, share, collectionSettings, publishSettings)
     local pwAlbumUI = UIHelpers.createPiwigoAlbumSettingsUI(f, share, bind, collectionSettings, publishSettings)
 
+    local metaDataUI = UIHelpers.createMetaDataUI(f, bind, collectionSettings, publishSettings)
+
     local kwFilterUI = UIHelpers.createKeywordFilteringUI(f, bind, collectionSettings, publishSettings)
 
-    local sortOrderUI = f:group_box {
-        title = "Sort Order",
-        font = "<system/bold>",
-        size = 'regular',
-        fill_horizontal = 1,
-        bind_to_object = assert(collectionSettings),
-        f:row {
-            fill_horizontal = 1,
-            f:static_text {
-                title = "Sync sort order to Piwigo:",
-                font = "<system>",
-                alignment = 'right',
-            },
-            f:popup_menu {
-                value = bind 'syncSortOrderOverride',
-                items = {
-                    { title = "Use global setting", value = "default" },
-                    { title = "Always sync",        value = "always" },
-                    { title = "Never sync",         value = "never" },
-                },
-            },
-        },
-    }
+    local sortOrderUI = UIHelpers.createSortOrderUI(f, bind, collectionSettings, publishSettings)
 
-    return pwAlbumUI, sortOrderUI, kwFilterUI
+    return pwAlbumUI, metaDataUI, sortOrderUI, kwFilterUI
 end
 -- ************************************************
 function PublishTask.viewForCollectionSettings(f, publishSettings, info)
@@ -254,7 +223,7 @@ function PublishTask.viewForCollectionSettings(f, publishSettings, info)
     local collectionSettings = assert(info.collectionSettings)
 
     initCollectionSettingsDefaults(collectionSettings)
-    local pwAlbumUI, sortOrderUI, kwFilterUI = buildCommonCollectionUI(f, bind, share, collectionSettings,
+    local pwAlbumUI, metaDataUI, sortOrderUI, kwFilterUI = buildCommonCollectionUI(f, bind, share, collectionSettings,
         publishSettings)
 
     local allowCustomAlbumSettings = publishSettings and publishSettings.PWP_customAlbumSettings == true
@@ -264,7 +233,8 @@ function PublishTask.viewForCollectionSettings(f, publishSettings, info)
         UI = f:column {
             spacing = f:control_spacing(),
             pwAlbumUI,
-            --    sortOrderUI, --todo
+            metaDataUI,
+            sortOrderUI,
             kwFilterUI,
             customSettingsUI,
         }
@@ -272,7 +242,6 @@ function PublishTask.viewForCollectionSettings(f, publishSettings, info)
         UI = f:column {
             spacing = f:control_spacing(),
             pwAlbumUI,
-            --    sortOrderUI, --todo
         }
     end
     return UI
@@ -381,7 +350,7 @@ function PublishTask.viewForCollectionSetSettings(f, publishSettings, info)
 
     initCollectionSettingsDefaults(collectionSettings)
 
-    local pwAlbumUI, sortOrderUI, kwFilterUI = buildCommonCollectionUI(f, bind, share, collectionSettings,
+    local pwAlbumUI, metaDataUI, sortOrderUI, kwFilterUI = buildCommonCollectionUI(f, bind, share, collectionSettings,
         publishSettings)
 
     local allowCustomAlbumSettings = publishSettings and publishSettings.PWP_customAlbumSettings == true
@@ -391,7 +360,8 @@ function PublishTask.viewForCollectionSetSettings(f, publishSettings, info)
         UI = f:column {
             spacing = f:control_spacing(),
             pwAlbumUI,
-            --    sortOrderUI, --todo
+            metaDataUI,
+            sortOrderUI,
             kwFilterUI,
             customSettingsUI,
         }
@@ -399,7 +369,6 @@ function PublishTask.viewForCollectionSetSettings(f, publishSettings, info)
         UI = f:column {
             spacing = f:control_spacing(),
             pwAlbumUI,
-            --    sortOrderUI, --todo
         }
     end
 

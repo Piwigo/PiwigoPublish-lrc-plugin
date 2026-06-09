@@ -266,6 +266,41 @@ function UIHelpers.createKeywordFilteringFields(f, bind, options)
 end
 
 -- *************************************************
+-- Create Album Sorting UI section (standalone group_box)
+-- -- Used in PublishTask for collection settings dialogs
+-- *************************************************
+function UIHelpers.createSortOrderUI(f, bind, collectionSettings, publishSettings)
+	local sortOrderUI = f:group_box {
+		title = "Sort Order",
+		visible = bind {
+			key = 'enableCustom',
+			bind_to_object = collectionSettings,
+		},
+		font = "<system/bold>",
+		size = 'regular',
+		fill_horizontal = 1,
+		bind_to_object = assert(collectionSettings),
+		f:row {
+			fill_horizontal = 1,
+			f:static_text {
+				title = "Sync sort order to Piwigo:",
+				font = "<system>",
+				alignment = 'right',
+			},
+			f:popup_menu {
+				value = bind 'syncSortOrderOverride',
+				items = {
+					{ title = "Use global setting", value = "default" },
+					{ title = "Always sync",        value = "always" },
+					{ title = "Never sync",         value = "never" },
+				},
+			},
+		},
+	}
+	return sortOrderUI
+end
+
+-- *************************************************
 -- Create Keyword Filtering UI section (standalone group_box)
 -- Returns a group_box with exclusion and inclusion rules
 -- Used in PublishTask for collection settings dialogs
@@ -305,6 +340,7 @@ end
 -- Create "Metadata Settings" group_box for PublishDialogSections
 -- Contains fields for metadata templates for title and description
 -- *************************************************
+--UIHelpers.createMetaDataUI(f, bind, collectionSettings, publishSettings)
 function UIHelpers.createMetaDataGroupBox(f, bind)
 	local metadataGroupDef = {
 		title = "Metadata Settings",
@@ -347,6 +383,61 @@ function UIHelpers.createMetaDataGroupBox(f, bind)
 
 	return f:group_box(metadataGroupDef)
 end
+
+-- *************************************************
+-- Create "Metadata Settings" group_box for PublishDialogSections
+-- Contains fields for metadata templates for title and description
+-- *************************************************
+function UIHelpers.createMetaDataUI(f, bind, collectionSettings, publishSettings)
+	local metadataGroupDef = {
+		title = "Metadata Settings (Overrides defaults set in Publish Settings)",
+		visible = bind {
+			key = 'enableCustom',
+			bind_to_object = collectionSettings,
+		},
+		font = "<system/bold>",
+		size = 'regular',
+		fill_horizontal = 1,
+		bind_to_object = assert(collectionSettings),
+		f:spacer { height = 2 },
+		f:row {
+			f:static_text {
+				title = "Title: ",
+				font = "<system>",
+				alignment = 'right',
+				width_in_chars = 8,
+			},
+			f:edit_field {
+				value = bind 'mdTitle',
+				font = "<system>",
+				alignment = 'left',
+				width_in_chars = 60,
+				height_in_lines = 3,
+			},
+		},
+		f:row {
+			f:static_text {
+				title = "Description: ",
+				font = "<system>",
+				alignment = 'right',
+				width_in_chars = 8,
+			},
+			f:edit_field {
+				value = bind 'mdDescription',
+				font = "<system>",
+				alignment = 'left',
+				width_in_chars = 60,
+				height_in_lines = 3,
+			},
+		},
+	}
+
+	local mdBox = f:group_box(metadataGroupDef)
+
+	return mdBox
+end
+
+
 
 -- *************************************************
 -- Create "Album Customisation Settings" group_box for PublishDialogSections
@@ -436,7 +527,7 @@ function UIHelpers.createAlbumSettingsGroupBox(f, bind, propertyTable)
 			},
 			f:static_text {
 				title = "When enabled, custom settings for each album can be set. If disabled, the global settings will be used for all albums." ..
-					"\nThese settings include metadata templates for title and description, keyword filtering rules and export settings (resizing, metadata stripping etc.)." ..
+					"\nThese settings include metadata templates for title and description, sorting options, keyword filtering rules and export settings (resizing, metadata stripping etc.)." ..
 					"\nPer-album custom settings are not compatible with album association - if per-album custom settings are enabled, album association will be disabled.",
 				font = "<system>",
 				wrap = true,
@@ -474,6 +565,21 @@ function UIHelpers.createOtherSettingsGroupBox(f, bind, propertyTable)
 			},
 		},
 
+		f:spacer { height = 1 },
+		f:row {
+			fill_horizontal = 1,
+			f:static_text {
+				title = "",
+				alignment = 'right',
+				width_in_chars = 7,
+			},
+			f:checkbox {
+				title = "Synchronise Photo Sort Order",
+				font = "<system>",
+				tooltip = "If checked, the photo display order in Lightroom will be sent to Piwigo after each publish",
+				value = bind 'syncPhotoSortOrder',
+			},
+		},
 
 		f:spacer { height = 1 },
 		f:row {

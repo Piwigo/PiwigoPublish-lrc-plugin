@@ -37,6 +37,7 @@ function PublishDialogSections.startDialog(propertyTable)
 		propertyTable.ConCheck = true
 		propertyTable.ConStatus = "Not Connected"
 	end
+	propertyTable.ServerPluginStatus = propertyTable.ServerPluginStatus or "Server plugin: unknown"
 	-- Store the last saved connection details
 	propertyTable.savedHost = propertyTable.host or ""
 	propertyTable.savedUsername = propertyTable.userName or ""
@@ -48,6 +49,9 @@ function PublishDialogSections.startDialog(propertyTable)
 	-- try to login
 	LrTasks.startAsyncTask(function()
 		local rv = PiwigoAPI.login(propertyTable)
+		if rv then
+			PiwigoAPI.refreshServerPluginStatus(propertyTable)
+		end
 	end)
 end
 
@@ -113,6 +117,8 @@ local function connectionDialog(f, propertyTable, pwInstance)
 					LrTasks.startAsyncTask(function()
 						if not PiwigoAPI.login(propertyTable) then
 							LrDialogs.message("Connection NOT successful")
+						else
+							PiwigoAPI.refreshServerPluginStatus(propertyTable, true)
 						end
 					end)
 				end,
@@ -169,6 +175,14 @@ local function connectionDialog(f, propertyTable, pwInstance)
 			f:static_text {
 				title = bind 'ConStatus',
 				font = "<system/bold>",
+				alignment = 'center',
+				fill_horizontal = 1,
+			},
+		},
+		f:row {
+			f:static_text {
+				title = bind 'ServerPluginStatus',
+				font = "<system>",
 				alignment = 'center',
 				fill_horizontal = 1,
 			},
@@ -740,7 +754,8 @@ local function prefsDialog(f, propertyTable)
 								table.insert(rows, dlgF:row {
 									dlgF:static_text { title = "", width = colLabel },
 									dlgF:static_text {
-										title = "Install the 'PiwigoPublish Companion' plugin\non your Piwigo server for detailed diagnostics\nand automatic video configuration.",
+										title = "",
+										--title = "Install the 'PiwigoPublish Companion' plugin\non your Piwigo server for detailed diagnostics\nand automatic video configuration.",
 										font = "<system>", width = colValue, height_in_lines = 3,
 									},
 								})
@@ -751,7 +766,8 @@ local function prefsDialog(f, propertyTable)
 								table.insert(rows, dlgF:row {
 									dlgF:static_text { title = "", width = colLabel },
 									dlgF:static_text {
-										title = "Install and activate the VideoJS plugin\nfrom Piwigo administration for video playback.",
+										title = "",
+										--title = "Install and activate the VideoJS plugin\nfrom Piwigo administration for video playback.",
 										font = "<system>", width = colValue, height_in_lines = 2,
 									},
 								})
