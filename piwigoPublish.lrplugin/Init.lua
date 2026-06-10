@@ -79,9 +79,11 @@ _G.iconPath = _PLUGIN:resourceId("icons/icon_med.png")
 -- _PLUGIN.VERSION is nil here for some reason, so hardcoding for now
 -- just need to ensure both places are updated together
 
-_G.versionInfo = { major=20260610, minor=36, revision=0 }
+--_G.versionInfo = { major=20260610, minor=36, revision=0 }
+ _G.versionInfo = { major=2, minor=0, revision=0 } --- IGNORE ---
+--_G.pluginVersion = string.format("%d.%d", versionInfo.major, versionInfo.minor)
+ _G.pluginVersion = string.format("%d.%d.%d", versionInfo.major, versionInfo.minor, versionInfo.revision) --- IGNORE ---
 
-_G.pluginVersion = string.format("%d.%d", versionInfo.major, versionInfo.minor)
 -- Auto-update checker
 _G.UpdateChecker = require "UpdateChecker"
 

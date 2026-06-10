@@ -106,6 +106,76 @@ function UpdateChecker.getInstalledVersionDate()
 end
 
 -- *************************************************
+function UpdateChecker.extractMajorVersion(versionStr)
+    -- Extracts major version number from SemVer format only.
+    -- Returns major number, or nil if not SemVer (e.g., date-based format).
+    if not versionStr or versionStr == "" then
+        return nil
+    end
+    
+    versionStr = tostring(versionStr):gsub("^[vV]", "")
+    
+    -- Only process SemVer (doesn't start with 20xx)
+    local firstPart = versionStr:match("^(%d+)")
+    if not firstPart or tonumber(firstPart) >= 20000000 then
+        -- Date-based format, not SemVer
+        return nil
+    end
+    
+    -- Extract major from SemVer
+    local major = versionStr:match("^(%d+)")
+    return tonumber(major)
+end
+
+-- *************************************************
+function UpdateChecker.fetchAndFilterReleases(targetMajor)
+    -- Fetches all releases from GitHub and filters to SemVer versions matching targetMajor.
+    -- Returns array of release tables or empty array on error.
+    local url = string.format(
+        "https://api.github.com/repos/%s/%s/releases",
+        UpdateChecker.GITHUB_OWNER,
+        UpdateChecker.GITHUB_REPO
+    )
+    
+    log:info("UpdateChecker.fetchAndFilterReleases - fetching: " .. url)
+    
+    local response, headers = LrHttp.get(url, {
+        { field = "Accept", value = "application/vnd.github.v3+json" },
+        { field = "User-Agent", value = "PiwigoPublish-Lightroom-Plugin" }
+    })
+    
+    log:info("UpdateChecker.fetchAndFilterReleases - HTTP status: " .. tostring(headers and headers.status))
+    
+    if not response or (headers and headers.status ~= 200) then
+        log:info("UpdateChecker.fetchAndFilterReleases - failed to fetch releases")
+        return {}
+    end
+    
+    local ok, releases = pcall(function() return JSON:decode(response) end)
+    if not ok or not releases then
+        log:info("UpdateChecker.fetchAndFilterReleases - failed to parse JSON")
+        return {}
+    end
+    
+    -- Filter to SemVer releases matching targetMajor
+    local filtered = {}
+    for _, release in ipairs(releases) do
+        local tag = release.tag_name
+        if tag then
+            local major = UpdateChecker.extractMajorVersion(tag)
+            if major and major == targetMajor then
+                table.insert(filtered, release)
+                log:info("UpdateChecker.fetchAndFilterReleases - matched: " .. tag .. " (major=" .. major .. ")")
+            else
+                log:info("UpdateChecker.fetchAndFilterReleases - filtered out: " .. tag)
+            end
+        end
+    end
+    
+    return filtered
+end
+
+-- *************************************************
 function UpdateChecker.shouldCheckForUpdates()
     -- Returns true if enough time has passed since last check
     local lastCheck = prefs.lastUpdateCheck or 0
@@ -122,61 +192,120 @@ function UpdateChecker.checkForUpdates(silent)
     log:info("UpdateChecker.checkForUpdates - silent: " .. tostring(silent))
     
     LrTasks.startAsyncTask(function()
-        -- Build GitHub API URL
-        local url = string.format(
-            "https://api.github.com/repos/%s/%s/releases/latest",
-            UpdateChecker.GITHUB_OWNER,
-            UpdateChecker.GITHUB_REPO
-        )
-        
-        log:info("UpdateChecker.checkForUpdates - fetching: " .. url)
-        
-        -- Make HTTP request
-        local response, headers = LrHttp.get(url, {
-            { field = "Accept", value = "application/vnd.github.v3+json" },
-            { field = "User-Agent", value = "PiwigoPublish-Lightroom-Plugin" }
-        })
-        
-        log:info("UpdateChecker.checkForUpdates - HTTP status: " .. tostring(headers and headers.status))
-        
         -- Update last check timestamp
         prefs.lastUpdateCheck = LrDate.currentTime()
-        log:info("UpdateChecker.checkForUpdates - response\n" .. utils.serialiseVar(response))
-        log:info("UpdateChecker.checkForUpdates - headers\n" .. utils.serialiseVar(headers))        
-        -- Handle errors
-
-        if not response or (headers and headers.status ~= 200) then
-            log:info("UpdateChecker.checkForUpdates - failed to fetch release info")
+        
+        -- Get installed version and extract major version
+        local installedMajor = UpdateChecker.extractMajorVersion(pluginVersion)
+        log:info("UpdateChecker.checkForUpdates - installed version: " .. pluginVersion .. ", major: " .. tostring(installedMajor))
+        
+        -- If installed version is not SemVer, offer migration to v2.x.x (bridge from date-based to SemVer)
+        if not installedMajor then
+            log:info("UpdateChecker.checkForUpdates - installed version is date-based format, checking for v2.x.x migration path")
+            
+            local v2Releases = UpdateChecker.fetchAndFilterReleases(2)
+            
+            if #v2Releases > 0 then
+                -- Find highest v2.x.x version
+                local bestV2Release = nil
+                local bestV2Num = 0
+                for _, release in ipairs(v2Releases) do
+                    local relNum, relFormat = UpdateChecker.parseVersion(release.tag_name)
+                    if relNum > bestV2Num then
+                        bestV2Num = relNum
+                        bestV2Release = release
+                    end
+                end
+                
+                if bestV2Release then
+                    local v2Version = bestV2Release.tag_name
+                    local v2Changelog = bestV2Release.body or "No changelog available."
+                    if #v2Changelog > 500 then
+                        v2Changelog = v2Changelog:sub(1, 500) .. "..."
+                    end
+                    
+                    local v2DownloadUrl = bestV2Release.html_url
+                    
+                    log:info("UpdateChecker.checkForUpdates - offering migration to: " .. v2Version)
+                    
+                    local result = LrDialogs.confirm(
+                        "Migrate to New Version",
+                        string.format(
+                            "A new major version of Piwigo Publisher is available!\n\n" ..
+                            "Current version: %s (Legacy)\n" ..
+                            "New version: %s (SemVer Release)\n\n" ..
+                            "This new version uses improved versioning and includes important updates.\n\n" ..
+                            "Changes:\n%s\n\n" ..
+                            "Would you like to download it now?",
+                            pluginVersion,
+                            v2Version,
+                            v2Changelog
+                        ),
+                        "Download",
+                        "Later"
+                    )
+                    
+                    if result == "ok" then
+                        UpdateChecker.openDownloadPage(v2DownloadUrl)
+                    end
+                end
+            else
+                log:info("UpdateChecker.checkForUpdates - no v2.x.x releases found")
+                if not silent then
+                    LrDialogs.message(
+                        "Update Check",
+                        string.format("You are running version %s. A new version format will be available soon.", pluginVersion),
+                        "info"
+                    )
+                end
+            end
+            return
+        end
+        
+        -- Fetch all releases and filter by major version
+        local filteredReleases = UpdateChecker.fetchAndFilterReleases(installedMajor)
+        
+        if #filteredReleases == 0 then
+            log:info("UpdateChecker.checkForUpdates - no releases found for major version " .. installedMajor)
+            if not silent then
+                LrDialogs.message(
+                    "No Updates Available",
+                    string.format("You are running the latest version (%s).", pluginVersion),
+                    "info"
+                )
+            end
+            return
+        end
+        
+        -- Find the highest version in filtered releases
+        local bestRelease = nil
+        local bestNum = 0
+        for _, release in ipairs(filteredReleases) do
+            local relNum, relFormat = UpdateChecker.parseVersion(release.tag_name)
+            if relNum > bestNum then
+                bestNum = relNum
+                bestRelease = release
+            end
+        end
+        
+        if not bestRelease then
+            log:info("UpdateChecker.checkForUpdates - failed to parse filtered releases")
             if not silent then
                 LrDialogs.message(
                     "Update Check Failed",
-                    "Could not connect to GitHub to check for updates.\nPlease check your internet connection.",
+                    "Could not parse release information from GitHub.",
                     "warning"
                 )
             end
             return
         end
         
-        -- Parse JSON response
-        local ok, data = pcall(function() return JSON:decode(response) end)
-        if not ok or not data then
-            log:info("UpdateChecker.checkForUpdates - failed to parse JSON response")
-            if not silent then
-                LrDialogs.message(
-                    "Update Check Failed",
-                    "Could not parse update information from GitHub.",
-                    "warning"
-                )
-            end
-            return
-        end
-        
-        -- Extract version info
-        local remoteVersion = data.tag_name
-        local publishedAt = data.published_at
+        -- Extract version info from best match
+        local remoteVersion = bestRelease.tag_name
+        local publishedAt = bestRelease.published_at
         
         if not remoteVersion then
-            log:info("UpdateChecker.checkForUpdates - no tag_name in response")
+            log:info("UpdateChecker.checkForUpdates - no tag_name in best release")
             if not silent then
                 LrDialogs.message(
                     "Update Check Failed",
@@ -187,7 +316,7 @@ function UpdateChecker.checkForUpdates(silent)
             return
         end
         
-        log:info("UpdateChecker.checkForUpdates - remote version: " .. remoteVersion)
+        log:info("UpdateChecker.checkForUpdates - best remote version: " .. remoteVersion)
         log:info("UpdateChecker.checkForUpdates - published_at: " .. tostring(publishedAt))
         log:info("UpdateChecker.checkForUpdates - current version: " .. pluginVersion)
         
@@ -222,15 +351,24 @@ function UpdateChecker.checkForUpdates(silent)
             end
         end
         
+        -- If SemVer versions, ensure they match major version (safety check)
+        if currentFormat == "semver" and remoteFormat == "semver" then
+            local remoteMajor = UpdateChecker.extractMajorVersion(remoteVersion)
+            if remoteMajor ~= installedMajor then
+                log:info("UpdateChecker.checkForUpdates - major version mismatch, rejecting update")
+                updateAvailable = false
+            end
+        end
+        
         if updateAvailable then
             -- New version available
-            local changelog = data.body or "No changelog available."
+            local changelog = bestRelease.body or "No changelog available."
             -- Truncate changelog if too long
             if #changelog > 500 then
                 changelog = changelog:sub(1, 500) .. "..."
             end
             
-            local downloadUrl = data.html_url or 
+            local downloadUrl = bestRelease.html_url or 
                 string.format("https://github.com/%s/%s/releases/latest", 
                     UpdateChecker.GITHUB_OWNER, UpdateChecker.GITHUB_REPO)
             
