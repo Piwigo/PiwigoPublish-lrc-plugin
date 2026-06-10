@@ -49,7 +49,7 @@ function UpdateChecker.parseVersion(versionStr)
     -- Remove 'v' prefix if present
     versionStr = tostring(versionStr):gsub("^[vV]", "")
     
-    -- Check if it's date-based (starts with 20xx) or SemVer
+    -- Check if it's date-based (starts with 20xx) or Semantic Versioning (starts with 1.x, 2.x, etc.)
     local firstPart = versionStr:match("^(%d+)")
     if not firstPart then
         return 0, "unknown"
@@ -62,7 +62,7 @@ function UpdateChecker.parseVersion(versionStr)
         minor = tonumber(minor) or 0
         return major * 1000 + minor, "date"
     else
-        -- SemVer format: major.minor.patch
+        -- Semantic Versioning format: major.minor.patch
         local major, minor, patch = versionStr:match("^(%d+)%.?(%d*)%.?(%d*)")
         major = tonumber(major) or 0
         minor = tonumber(minor) or 0

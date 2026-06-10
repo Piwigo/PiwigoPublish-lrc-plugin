@@ -25,6 +25,7 @@ deploy.sh
 diagnostic.txt
 copilot-instructions.md
 DEBUG-TODO.md
+LEGACY-MAINTENANCE-POLICY.md
 
 # Temporary folder for localisation tools
 piwigoPublish.lrplugin/__i18n_tmp__/

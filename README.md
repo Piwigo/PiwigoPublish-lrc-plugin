@@ -6,6 +6,25 @@ Please see the [Wiki](https://github.com/Piwigo/PiwigoPublish-lrc-plugin/wiki) f
 
 ---
 
+## Release Channels
+
+This repository publishes two release channels:
+
+- Modern channel (default): for Piwigo v16 and above, API-key-first support
+- Legacy channel: for older Piwigo versions, maintenance fixes only
+
+How to find the right release in GitHub Releases:
+
+- Look for release titles starting with `MODERN -`
+- Look for release titles starting with `LEGACY -`
+- Read the first compatibility line in the release notes before installing
+- Modern tags continue the existing date.build sequence (for example `v20260609.36`)
+- The first modern release after the track split includes explicit migration notes and compatibility guidance
+
+Release policy and workflow details are documented in [LEGACY-MAINTENANCE-POLICY.md](LEGACY-MAINTENANCE-POLICY.md).
+
+---
+
 ## Disclaimer
 
 With the exception of JSON.lua, Copyright 2010-2017 Jeffrey Friedl, which is released under a Creative Commons CC-BY "Attribution" License: http://creativecommons.org/licenses/by/3.0/deed.en_US, and md5.lua, Copyright (c) 2013 Enrique García Cota + Adam Baldwin + hanzao + Equi 4 Software which is released under an MIT license, this software is released under the GNU General Public License version 3 as published by the Free Software Foundation.

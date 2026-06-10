@@ -793,6 +793,7 @@ end
 function utils.wildcardMatch(pattern, text)
     -- match text against a wildcard pattern (* = any chars, ? = single char)
     -- case-insensitive
+    -- log:info("utils.wildcardMatch - pattern: " .. pattern .. ", text: " .. text)
     local p = pattern:lower()
     local t = text:lower()
     -- escape Lua magic characters except * and ?
@@ -804,7 +805,9 @@ function utils.wildcardMatch(pattern, text)
     p = p:gsub("%?", ".")
     -- anchor the pattern
     p = "^" .. p .. "$"
-    return t:match(p) ~= nil
+    local match = t:match(p)
+    -- log:info("utils.wildcardMatch - match: " .. tostring(match))
+    return match ~= nil
 end
 
 -- *************************************************
