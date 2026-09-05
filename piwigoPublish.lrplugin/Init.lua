@@ -96,6 +96,7 @@ LrTasks.startAsyncTask(function()
     if UpdateChecker.shouldCheckForUpdates() then
         log:info("Init - performing automatic update check")
         UpdateChecker.checkForUpdates(true) -- silent = true
+        UpdateChecker.checkForMajorVersionNotice(true) -- silent = true
     end
 end)
 

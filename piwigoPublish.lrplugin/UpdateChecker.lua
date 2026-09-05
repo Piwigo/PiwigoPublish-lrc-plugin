@@ -411,6 +411,32 @@ function UpdateChecker.checkForUpdates(silent)
 end
 
 -- *************************************************
+function UpdateChecker.checkForMajorVersionNotice(silent)
+    local installedMajor = UpdateChecker.extractMajorVersion(pluginVersion)
+    if not installedMajor then return end  -- date-based users handled by existing migration path
+
+    if prefs.notifiedV3Available then return end  -- already told them
+
+    local nextMajor = installedMajor + 1
+    local releases = UpdateChecker.fetchAndFilterReleases(nextMajor)
+
+    if #releases > 0 then
+        prefs.notifiedV3Available = true
+        LrDialogs.message(
+            "New Major Version Available",
+            string.format(
+                "Piwigo Publisher v%d.x is now available.\n\n" ..
+                "This is a major upgrade that requires switching to Piwigo API key authentication " ..
+                "before it will work — please read the release notes before installing.\n\n" ..
+                "You are not required to upgrade; v%d.x will continue to be supported.",
+                nextMajor, installedMajor
+            ),
+            "info"
+        )
+    end
+end
+
+-- *************************************************
 function UpdateChecker.openDownloadPage(url)
     log:info("UpdateChecker.openDownloadPage - opening: " .. url)
     LrHttp.openUrlInBrowser(url)

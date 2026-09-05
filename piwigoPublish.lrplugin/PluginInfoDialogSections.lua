@@ -278,6 +278,7 @@ function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
                         title = "Check now",
                         action = function()
                             UpdateChecker.checkForUpdates(false)
+                            UpdateChecker.checkForMajorVersionNotice(false)
                         end,
                     },
                 },
