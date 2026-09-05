@@ -67,8 +67,6 @@ return {
 		{ key = "PWP_customAlbumSettings", default = false },
 		{ key = "KwFilterExclude",         default = '' },
 		{ key = "KwFilterInclude",         default = '' },
-
-
 	},
 
 	metadataThatTriggersRepublish       = function(publishSettings, photoId, fieldName)
