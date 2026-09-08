@@ -373,12 +373,12 @@ local function saveFailedRenderArtifacts(filePath, sourcePhotoName, debugInfo)
     end
 
     local debugTextPath = LrPathUtils.child(failedDir, artifactBase .. ".txt")
-    local debugText = "PiwigoPublish upload failure debug artifact" ..   
-                    "Generated: " .. os.date("%Y-%m-%d %H:%M:%S") .. 
-                    "Source photo: " .. tostring(sourcePhotoName) .. 
-                    "Original render path: " .. tostring(filePath) .. 
-                    "Saved render path: " .. tostring(failedImagePath) .. 
-                    "Debug info: " .. utils.serialiseVar(debugInfo)
+    local debugText = "PiwigoPublish upload failure debug artifact" ..
+        "Generated: " .. os.date("%Y-%m-%d %H:%M:%S") ..
+        "Source photo: " .. tostring(sourcePhotoName) ..
+        "Original render path: " .. tostring(filePath) ..
+        "Saved render path: " .. tostring(failedImagePath) ..
+        "Debug info: " .. utils.serialiseVar(debugInfo)
 
     local f, err = io.open(debugTextPath, "w")
     if f then
@@ -644,8 +644,8 @@ function PublishTaskImageProcessing.processRenderedPhotos(functionContext, expor
             callStatus = {}
             local filePath = pathOrMessage
             local initialRenderExt = getPathExtension(filePath)
-            -- code to try and catch bug that sometimes generates a TIFF file instead of JPEG/PNG for the initial render, 
-            --  which then causes upload to fail as Piwigo doesn't accept TIFF files, this is just to log details of the 
+            -- code to try and catch bug that sometimes generates a TIFF file instead of JPEG/PNG for the initial render,
+            --  which then causes upload to fail as Piwigo doesn't accept TIFF files, this is just to log details of the
             -- render settings in these cases to try and identify the root cause of the issue
             if isTiffExtension(initialRenderExt) then
                 log:warn("Initial render produced ." .. initialRenderExt .. " file: " .. tostring(filePath) ..
@@ -766,16 +766,16 @@ function PublishTaskImageProcessing.processRenderedPhotos(functionContext, expor
                             settingsDiffer = customRenderInfo and customRenderInfo.settingsDiffer,
                             changedKey = customRenderInfo and customRenderInfo.changedKey,
                             sourceFormat = customRenderInfo and buildFormatSnapshot(customRenderInfo.sourceSettings) or
-                            nil,
+                                nil,
                             overrideFormat = customRenderInfo and buildFormatSnapshot(customRenderInfo.overrideSettings) or
-                            nil,
+                                nil,
                         },
                         hasContentsSubTable = type(anonymisedPropertyTable) == "table" and
                             type(anonymisedPropertyTable["< contents >"]) == "table",
                         propertyTableFormat = buildFormatSnapshot(anonymisedPropertyTable),
                         sourceSettingsFormat = buildFormatSnapshot(sourceSettingsForDiagnostics),
                         callStatus = callStatus,
-                        metaData = metaData, 
+                        metaData = metaData,
                     }
 
                     log:info("Upload failed for photo: " .. sourcePhotoName)
@@ -870,8 +870,7 @@ function PublishTaskImageProcessing.processCloneSync(functionContext, exportCont
 end
 
 -- ************************************************
-function PublishTaskImageProcessing.deletePhotosFromPublishedCollection(publishSettings, arrayOfPhotoIds, deletedCallback,
-                                                                        localCollectionId)
+function PublishTaskImageProcessing.deletePhotosFromPublishedCollection(publishSettings, arrayOfPhotoIds, deletedCallback, localCollectionId)
     local callStatus = {}
     local errStatus = ""
 

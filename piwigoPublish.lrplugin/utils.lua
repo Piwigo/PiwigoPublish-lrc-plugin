@@ -915,7 +915,7 @@ end
 
 -- *************************************************
 function utils.getPhotoMetadata(publishSettings, lrPhoto, collectionSettings)
-    -- build set of metadata to be send to Piwigo
+    -- build set of metadata to be sent to Piwigo
     local metaData = {}
 
     local useTitleFormat = publishSettings.mdTitle
