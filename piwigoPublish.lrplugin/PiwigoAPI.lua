@@ -832,11 +832,16 @@ function PiwigoAPI.createCollection(propertyTable, node, parentNode, isLeafNode,
             end
         else
             -- update existing collection/set details with albumdescription and status
-            local collectionSettings = {}
+            -- need to check if a previosly created collection needs to be converted to or collection set 
+            -- isLeafNode == true if the collection has no child collections
             if existingColl:type() == "LrPublishedCollection" then
                 -- existing collection
+                if not isLeafNode then
+                    -- handle non-leaf node case if needed
+                    -- convert the existing collection to a collection set if needed via Special Collections code
+                end
                 log:info("createCollection - updating existing PublishedCollection " .. existingColl:getName())
-                collectionSettings = existingColl:getCollectionInfoSummary().collectionSettings or {}
+                local collectionSettings = existingColl:getCollectionInfoSummary().collectionSettings or {}
                 if propertyTable.syncAlbumDescriptions then
                     collectionSettings.albumDescription = collDescription
                 else
@@ -854,7 +859,7 @@ function PiwigoAPI.createCollection(propertyTable, node, parentNode, isLeafNode,
             elseif existingColl:type() == "LrPublishedCollectionSet" then
                 -- existing collection set
                 log:info("createCollection - updating existing PublishedCollectionSet " .. existingColl:getName())
-                collectionSettings = existingColl:getCollectionSetInfoSummary().collectionSettings or {}
+                local collectionSettings = existingColl:getCollectionSetInfoSummary().collectionSettings or {}
                 if propertyTable.syncAlbumDescriptions then
                     collectionSettings.albumDescription = collDescription
                 else
@@ -1558,6 +1563,7 @@ function PiwigoAPI.importAlbums(propertyTable)
     end
     -- get categories from piwigo
     local allCats
+    
     rv, allCats = PiwigoAPI.pwCategoriesGet(propertyTable, "")
     if not rv then
         utils.handleError('PiwigoAPI:importAlbums - cannot get categories from piwigo',
@@ -1569,6 +1575,13 @@ function PiwigoAPI.importAlbums(propertyTable)
             "Error: No categories found in Piwigo server.")
         return
     end
+    
+    -- temporary read of allCats from  '/Volumes/EXT-Data/Nextcloud/github/lrc-plugins/PiwigoPublish/Issues/Issue #74/albums.json'
+    --local allCatsFile = '/Volumes/EXT-Data/Nextcloud/github/lrc-plugins/PiwigoPublish/Issues/Issue #74/albums.json'
+    --local allCatsContent = LrFileUtils.readFile(allCatsFile)
+    -- allCats must be the flat categories array, matching what pwCategoriesGet returns
+    --allCats = JSON:decode(allCatsContent).result.categories
+
     -- log:info("PiwigoAPI:importAlbums - allCats\n" .. utils.serialiseVar(allCats)  )
     -- hierarchical table of categories
     local catHierarchy = buildCatHierarchy(allCats)
