@@ -564,9 +564,19 @@ local function vps_createMissingPiwigoAlbumsFromIssues(catalog, propertyTable, p
     -- log:info("createMissingPiwigoAlbumsFromIssues - missing\n",utils.serialiseVar(missing))
     -- log:info("createMissingPiwigoAlbumsFromIssues - lrIndexByPath\n",utils.serialiseVar(lrIndexByPath))
     -- log:info("createMissingPiwigoAlbumsFromIssues - lrIndexById\n",utils.serialiseVar(lrIndexById))
+
+    -- add progressScope
+    local progressScope = LrProgressScope {
+        title = "Creating missing Piwigo albums",
+        caption = "Processing...",
+        functionContext = context
+    }
+
+    local numMissing = #missing
     local numCreated = 0
     local numFailed = 0
-    for _, miss in ipairs(missing) do
+    for i, miss in ipairs(missing) do
+        progressScope:setPortionComplete(i, numMissing)
         local lrEntry = lrIndexByPath[miss.path]
         local colLocalIdentifier = miss.id
         -- Determine parent remote ID
@@ -632,7 +642,7 @@ local function vps_createMissingPiwigoAlbumsFromIssues(catalog, propertyTable, p
         end
         log:info(string.format("Created missing Piwigo %s: %s (ID %s)", lrEntry.kind, miss.path, tostring(albumId)))
     end
-
+    progressScope:done()
     return numCreated, numFailed
 end
 
@@ -704,177 +714,152 @@ local function createCollectionsFromCatHierarchy(catNode, parentNode, propertyTa
 end
 
 -- *************************************************
+local function readAlbumSettings(coll, isSet)
+    -- LrPublishedCollection and LrPublishedCollectionSet expose settings via
+    -- different accessors -- normalise that here.
+    if isSet then
+        return coll:getCollectionSetInfoSummary().collectionSettings or {}
+    else
+        return coll:getCollectionInfoSummary().collectionSettings or {}
+    end
+end
+
+-- *************************************************
+local function buildAlbumSettings(existingSettings, collDescription, collStatus, propertyTable)
+    -- merge the Piwigo album's description/status into a collection(-set)
+    -- settings table, respecting the "sync descriptions" preference.
+    local settings = existingSettings or {}
+    settings.albumDescription = propertyTable.syncAlbumDescriptions and collDescription or ""
+    settings.albumPrivate = (collStatus == "private")
+    return settings
+end
+
+-- *************************************************
+local function applyAlbumSettings(catalog, coll, isSet, settings, remoteId, remoteUrl, collName)
+    -- Write settings back to Lightroom. remoteId/remoteUrl/collName are only
+    -- passed for newly-created collections -- pass nil for all three when
+    -- just refreshing settings on an already-published collection.
+    catalog:withWriteAccessDo("Update Piwigo details on collection" .. (isSet and " set" or ""), function()
+        if remoteId then
+            coll:setRemoteId(remoteId)
+            coll:setRemoteUrl(remoteUrl)
+            coll:setName(collName)
+        end
+        if isSet then
+            coll:setCollectionSetSettings(settings)
+        else
+            coll:setCollectionSettings(settings)
+        end
+    end)
+end
+
+-- *************************************************
 -- G L O B A L   F U N C T I O N S
 -- *************************************************
 
 -- *************************************************
 function PiwigoAPI.createCollection(propertyTable, node, parentNode, isLeafNode, statusData)
-    -- create Publishcollection or PublishCollectionSet using table of Piwigo Albums (nodes)
-    local parentColl
-    local existingColl, existingSet
+    -- Create a PublishedCollection or PublishedCollectionSet for a Piwigo
+    -- album (node), or update/upgrade an existing one. isLeafNode tells us
+    -- whether this album currently has child albums (false) or not (true).
     local catalog = LrApplication.activeCatalog()
     local stat = statusData
 
-    -- getPublishService to get reference to this publish service - returned in propertyTable._service
-    -- needs to be refreshed each time  to relfect lastest state of publishedCollections created further below
     log:info("createCollection for node " .. node.id .. ", " .. node.name)
 
-    local rv, publishService = PiwigoAPI.getPublishService(propertyTable)
+    local rv = PiwigoAPI.getPublishService(propertyTable)
     if not rv then
+        stat.errors = stat.errors + 1
         LrErrors.throwUserError("Error in createCollection: Cannot find Piwigo publish service for host/user.")
-        return false
     end
-    -- local publishService = propertyTable._service
+    local publishService = propertyTable._service
     if not publishService then
+        stat.errors = stat.errors + 1
         LrErrors.throwUserError("Error in createCollection: Piwigo publish service is nil.")
-        return false
     end
-    -- get parent collection or collection set
+
+    -- resolve parent collection/set
+    local parentColl
     if parentNode == "" then
-        -- no parent node so we start at root with the publishService
         parentColl = publishService
     else
-        -- find parent publishcollection in this publish service using id of parennt Piwigo album
         parentColl = utils.recursivePubCollectionSearchByRemoteID(publishService, parentNode.id)
     end
-    if not (parentColl) then
-        LrErrors.throwUserError("Error in createCollection: No parent collection for " .. node.name)
+    if not parentColl then
         stat.errors = stat.errors + 1
-    else
-        local remoteId = node.id
-        local collName = node.name
-        local collDescription = node.comment or ""
-        local collStatus = node.status or "public"
-        -- look for this collection - create if not found
-        existingColl = utils.recursivePubCollectionSearchByRemoteID(publishService, remoteId)
-        local rtnColl
-        if not (existingColl) then
-            -- not an existing collection/set for this node and we have got the parent collection/set
-            if parentColl:type() ~= "LrPublishedCollectionSet" and parentColl:type() ~= "LrPublishService" then
-                -- parentColl is not of type that can accept child collections - need to handle
-                LrErrors.throwUserError("Error in createCollection: Parent collection for " .. collName .. " is " ..
-                    parentColl:type() .. " - can't create child collection")
-                stat.errors = stat.errors + 1
-            else
-                local collectionSettings = {}
-                local newColl
-                if isLeafNode then
-                    -- create Publishedcollection
-
-                    log:info("createCollection - creating PublishedCollection " ..
-                        collName .. " under parent " .. parentColl:getName())
-
-                    catalog:withWriteAccessDo("Create PublishedCollection ", function()
-                        newColl = publishService:createPublishedCollection(collName, parentColl, true)
-                    end)
-
-                    -- now add remoteids and urls to collections and collection sets, and description and status
-                    if newColl == nil then
-                        LrErrors.throwUserError("Error in createCollection: Failed to create PublishedCollection " ..
-                            collName .. " under parent " .. parentColl:getName())
-                        stat.errors = stat.errors + 1
-                    else
-                        collectionSettings = newColl:getCollectionInfoSummary().collectionSettings or {}
-                        if propertyTable.syncAlbumDescriptions then
-                            collectionSettings.albumDescription = collDescription
-                        else
-                            collectionSettings.albumDescription = ""
-                        end
-                        if collStatus == "private" then
-                            collectionSettings.albumPrivate = true
-                        else
-                            collectionSettings.albumPrivate = false
-                        end
-
-                        catalog:withWriteAccessDo("Add Piwigo details to collections", function()
-                            newColl:setRemoteId(remoteId)
-                            newColl:setRemoteUrl(propertyTable.host .. "/index.php?/category/" .. remoteId)
-                            newColl:setName(collName)
-                            newColl:setCollectionSettings(collectionSettings)
-                        end)
-                        stat.collections = stat.collections + 1
-                    end
-                else
-                    -- Create PublishedCollectionSet
-                    log:info("createCollection - creating PublishedCollectionSet " .. collName .. " under parent " ..
-                        parentColl:getName())
-                    catalog:withWriteAccessDo("Create PublishedCollectionSet ", function()
-                        newColl = publishService:createPublishedCollectionSet(collName, parentColl, true)
-                    end)
-                    if newColl == nil then
-                        LrErrors.throwUserError("Error in createCollection: Failed to create PublishedCollectionSet " ..
-                            collName .. " under parent " .. parentColl:getName())
-                        stat.errors = stat.errors + 1
-                        return stat
-                    else
-                        -- now add remoteids and urls to collections and collection sets, and description and status
-                        collectionSettings = newColl:getCollectionSetInfoSummary().collectionSettings or {}
-                        if propertyTable.syncAlbumDescriptions then
-                            collectionSettings.albumDescription = collDescription
-                        else
-                            collectionSettings.albumDescription = ""
-                        end
-                        if collStatus == "private" then
-                            collectionSettings.albumPrivate = true
-                        else
-                            collectionSettings.albumPrivate = false
-                        end
-
-                        catalog:withWriteAccessDo("Add Piwigo details to collections", function()
-                            newColl:setRemoteId(remoteId)
-                            newColl:setRemoteUrl(propertyTable.host .. "/index.php?/category/" .. remoteId)
-                            newColl:setName(collName)
-                            newColl:setCollectionSetSettings(collectionSettings)
-                        end)
-                        stat.collectionSets = stat.collectionSets + 1
-                    end
-                end
-                rtnColl = newColl
-            end
-        else
-            -- update existing collection/set details with albumdescription and status
-            local collectionSettings = {}
-            if existingColl:type() == "LrPublishedCollection" then
-                -- existing collection
-                log:info("createCollection - updating existing PublishedCollection " .. existingColl:getName())
-                collectionSettings = existingColl:getCollectionInfoSummary().collectionSettings or {}
-                if propertyTable.syncAlbumDescriptions then
-                    collectionSettings.albumDescription = collDescription
-                else
-                    collectionSettings.albumDescription = ""
-                end
-                if collStatus == "private" then
-                    collectionSettings.albumPrivate = true
-                else
-                    collectionSettings.albumPrivate = false
-                end
-
-                catalog:withWriteAccessDo("Update Piwigo details to collections", function()
-                    existingColl:setCollectionSettings(collectionSettings)
-                end)
-            elseif existingColl:type() == "LrPublishedCollectionSet" then
-                -- existing collection set
-                log:info("createCollection - updating existing PublishedCollectionSet " .. existingColl:getName())
-                collectionSettings = existingColl:getCollectionSetInfoSummary().collectionSettings or {}
-                if propertyTable.syncAlbumDescriptions then
-                    collectionSettings.albumDescription = collDescription
-                else
-                    collectionSettings.albumDescription = ""
-                end
-                if collStatus == "private" then
-                    collectionSettings.albumPrivate = true
-                else
-                    collectionSettings.albumPrivate = false
-                end
-                catalog:withWriteAccessDo("Update Piwigo details to collections", function()
-                    existingColl:setCollectionSetSettings(collectionSettings)
-                end)
-            end
-            rtnColl = existingColl
-            stat.existing = stat.existing + 1
-        end
+        LrErrors.throwUserError("Error in createCollection: No parent collection for " .. node.name)
     end
-    return stat, existingColl
+
+    local remoteId = node.id
+    local collName = node.name
+    local collDescription = node.comment or ""
+    local collStatus = node.status or "public"
+    local remoteUrl = propertyTable.host .. "/index.php?/category/" .. remoteId
+
+    local existingColl = utils.recursivePubCollectionSearchByRemoteID(publishService, remoteId)
+    local rtnColl
+
+    if not existingColl then
+        -- Brand new node -- parent must be able to hold children.
+        if parentColl and parentColl:type() ~= "LrPublishedCollectionSet" and parentColl:type() ~= "LrPublishService" then
+            stat.errors = stat.errors + 1
+            LrErrors.throwUserError("Error in createCollection: Parent collection for " ..
+                collName .. " is " .. parentColl:type() .. " - can't create child collection")
+        end
+
+        local isSet = not isLeafNode
+        local kind = isSet and "PublishedCollectionSet" or "PublishedCollection"
+
+        log:info("createCollection - creating " .. kind .. " " .. collName .. " under parent " .. (parentColl and parentColl:getName() or ""))
+
+        local newColl
+        catalog:withWriteAccessDo("Create " .. kind, function()
+            if isSet then
+                newColl = publishService:createPublishedCollectionSet(collName, parentColl, true)
+            else
+                newColl = publishService:createPublishedCollection(collName, parentColl, true)
+            end
+        end)
+
+        if not newColl then
+            stat.errors = stat.errors + 1
+            LrErrors.throwUserError("Error in createCollection: Failed to create " .. kind ..
+                " " .. collName .. " under parent " .. (parentColl and parentColl:getName() or ""))
+        end
+
+        local settings = buildAlbumSettings(readAlbumSettings(newColl, isSet), collDescription, collStatus, propertyTable)
+        applyAlbumSettings(catalog, newColl, isSet, settings, remoteId, remoteUrl, collName)
+
+        if isSet then
+            stat.collectionSets = stat.collectionSets + 1
+        else
+            stat.collections = stat.collections + 1
+        end
+        rtnColl = newColl
+    else
+        -- Node already published. May need upgrading Collection -> CollectionSet
+        -- if it has gained child albums since it was last created.
+        local isSet = existingColl:type() == "LrPublishedCollectionSet"
+        if existingColl:type() == "LrPublishedCollection" and not isLeafNode then
+            log:info("createCollection - converting existing PublishedCollection " ..
+                existingColl:getName() .. " to PublishedCollectionSet")
+            local newCollSet = utils.convertCollectionToSet(catalog, publishService, existingColl, true)
+            if not newCollSet then
+                stat.errors = stat.errors + 1
+                error("Failed to convert collection to collection set")
+            end
+            existingColl = newCollSet
+            isSet = true
+        end
+        local albumSettings = readAlbumSettings(existingColl, isSet)
+        local newsettings = buildAlbumSettings(albumSettings, collDescription, collStatus, propertyTable)
+        applyAlbumSettings(catalog, existingColl, isSet, newsettings, nil, nil, nil)
+
+        rtnColl = existingColl
+        stat.existing = stat.existing + 1
+    end
+
+    return stat, rtnColl
 end
 
 -- *************************************************

@@ -213,7 +213,7 @@ local function sendMetadataForSelection(service)
 end
 
 -- *************************************************
-local function convertSelectionCollectionToSet(service)
+local function convertSelectionCollectionToSet(publishService)
     log:info("PWExtraOptions.convertSelectionCollectionToSet")
 
     local catalog = LrApplication.activeCatalog()
@@ -225,7 +225,7 @@ local function convertSelectionCollectionToSet(service)
             local srcType = source:type()
             if srcType == "LrPublishedCollection" or srcType == "LrPublishedCollectionSet" then
                 local thisService = source:getService()
-                if thisService and thisService.localIdentifier == service.localIdentifier then
+                if thisService and thisService.localIdentifier == publishService.localIdentifier then
                     selectedCollection = source
                     break
                 end
@@ -245,7 +245,7 @@ local function convertSelectionCollectionToSet(service)
         return false
     end
 
-    local publishSettings = service:getPublishSettings()
+    local publishSettings = publishService:getPublishSettings()
     if not publishSettings then
         LrDialogs.message("CollToSet - Can't find publish settings for this publish collection", "", "warning")
         return false
@@ -268,18 +268,13 @@ local function convertSelectionCollectionToSet(service)
         return false
     end
 
-    local newName = PiwigoAPI.buildSpecialCollectionName(selCollName)
-    local rv = PiwigoAPI.setCollectionDets(selectedCollection, catalog, publishSettings, newName, catId, selColParent)
-
-    local newCollSet = PiwigoAPI.createPublishCollectionSet(catalog, service, publishSettings, selCollName, catId,
-        selColParent)
-    if not newCollSet then
-        LrDialogs.message("CollToSet - Can't create new collection set " .. selCollName, "", "warning")
-        return false
+    local silent = false
+    local newCollSet = utils.convertCollectionToSet(catalog, publishService, selectedCollection, silent)
+    if newCollSet then
+        return true
     end
+    return false
 
-    rv = PiwigoAPI.setCollectionDets(selectedCollection, catalog, publishSettings, newName, catId, newCollSet)
-    return rv
 end
 
 -- *************************************************
