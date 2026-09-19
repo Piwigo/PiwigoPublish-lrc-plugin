@@ -224,14 +224,14 @@ end
 -- Compare effective Lightroom resize-related export settings and report first difference.
 function utils.resizeSettingsDiffer(originalSettings, newSettings)
     local keyDefs = {
-        { name = 'LR_size_doConstrain', type = 'bool' },
+        { name = 'LR_size_doConstrain',        type = 'bool' },
         { name = 'LR_size_userWantsConstrain', type = 'bool' },
-        { name = 'LR_size_doNotEnlarge', type = 'bool', aliases = { 'LR_size_dontEnlarge' } },
-        { name = 'LR_size_maxWidth', type = 'number', aliases = { 'LR_size_maxW' } },
-        { name = 'LR_size_maxHeight', type = 'number', aliases = { 'LR_size_maxH' } },
-        { name = 'LR_size_percentage', type = 'number' },
-        { name = 'LR_size_resizeType', type = 'string' },
-        { name = 'LR_size_units', type = 'string' },
+        { name = 'LR_size_doNotEnlarge',       type = 'bool',   aliases = { 'LR_size_dontEnlarge' } },
+        { name = 'LR_size_maxWidth',           type = 'number', aliases = { 'LR_size_maxW' } },
+        { name = 'LR_size_maxHeight',          type = 'number', aliases = { 'LR_size_maxH' } },
+        { name = 'LR_size_percentage',         type = 'number' },
+        { name = 'LR_size_resizeType',         type = 'string' },
+        { name = 'LR_size_units',              type = 'string' },
     }
 
     local function getValue(settings, keyDef)
@@ -1451,18 +1451,20 @@ function utils.recursePubCollectionSets(collNode, allSets)
 end
 
 -- *************************************************
-function utils.recursivePubCollectionSearchByRemoteID(collNode, findID)
+function utils.recursivePubCollectionSearchByRemoteID(thisCollorSet, findID)
     -- Recursively search for a published collection or published collection set matching a given remoteId (string or number)
-
-    -- Check this collNode if it has a remote ID (only if collNode is a collection or set)
-    if collNode:type() == 'LrPublishedCollection' or collNode:type() == 'LrPublishedCollectionSet' then
-        local thisID = collNode:getRemoteId()
+-- note risk of returning special collection which shares the same remote ID as it's parent collection set
+-- in practice this is avoided as we start from top of collection hierarchy and move down, so will find parent before special collection
+    log:info("Checking " .. thisCollorSet:getName() .. " for remote id " .. tostring(findID))
+    -- Check this collNode if it has a remote ID (only if thisCollorSet is a collection or set)
+    if thisCollorSet:type() == 'LrPublishedCollection' or thisCollorSet:type() == 'LrPublishedCollectionSet' then
+        local thisID = thisCollorSet:getRemoteId()
         if thisID == findID then
-            return collNode
+            return thisCollorSet
         end
-    end
+    end  
     -- Search immediate child collections
-    local children = collNode:getChildCollections()
+    local children = thisCollorSet:getChildCollections()
     if children then
         if children then
             for _, coll in ipairs(children) do
@@ -1477,8 +1479,8 @@ function utils.recursivePubCollectionSearchByRemoteID(collNode, findID)
     end
 
     -- Search child sets recursively
-    if collNode:getChildCollectionSets() then
-        local collSets = collNode:getChildCollectionSets()
+    if thisCollorSet:getChildCollectionSets() then
+        local collSets = thisCollorSet:getChildCollectionSets()
         if collSets then
             for _, set in ipairs(collSets) do
                 local foundSet = utils.recursivePubCollectionSearchByRemoteID(set, findID)
@@ -1716,6 +1718,55 @@ function utils.findExistingPwImageId(publishService, lrPhoto, excludeCollection)
     searchInSet(publishService)
 
     return pubPhotoExists, foundPubPhoto, foundPubCollection
+end
+
+-- *************************************************
+function utils.convertCollectionToSet(catalog, publishService, selectedCollection, silent)
+    -- Converts a selected collection to a collection set with a specialCollection for any photos in it
+    -- Returns the parent collection set or nil if not found.
+
+    if selectedCollection == nil then
+        log:info("convertCollectionToSet - No collection selected.")
+        if not silent then
+            LrDialogs.message("No collection selected.", "", "warning")
+        end
+
+        return false
+    end
+
+    if selectedCollection:type() ~= "LrPublishedCollection" then
+
+        log:info("convertCollectionToSet - Selected item is a " .. selectedCollection.type() .. " - must be a published collection.")
+        if not silent then
+            LrDialogs.message("Selected item is not a published collection.", "", "warning")
+        end
+        return false
+    end
+    local publishSettings = publishService:getPublishSettings()
+    local selCollName = selectedCollection:getName()
+    local selColParent = selectedCollection:getParent()
+    local catId = selectedCollection:getRemoteId()
+
+    -- rename selected collection to special collection name
+
+    local newName = PiwigoAPI.buildSpecialCollectionName(selCollName)
+    local rv = PiwigoAPI.setCollectionDets(selectedCollection, catalog, publishSettings, newName, catId, selColParent)
+
+
+    -- now create the new collection set using the original collection name
+    local newCollSet = PiwigoAPI.createPublishCollectionSet(catalog, publishService, publishSettings, selCollName, catId,
+        selColParent)
+    if not newCollSet then
+        log:info("convertCollectionToSet - Can't create new collection set " .. selCollName)
+        if not silent then
+            LrDialogs.message("CollToSet - Can't create new collection set " .. selCollName, "", "warning")
+        end
+        return false
+    end
+
+    rv = PiwigoAPI.setCollectionDets(selectedCollection, catalog, publishSettings, newName, catId, newCollSet)
+
+    return newCollSet
 end
 
 -- *************************************************
