@@ -752,8 +752,7 @@ function PiwigoAPI.createCollection(propertyTable, node, parentNode, isLeafNode,
             -- not an existing collection/set for this node and we have got the parent collection/set
             if parentColl:type() ~= "LrPublishedCollectionSet" and parentColl:type() ~= "LrPublishService" then
                 -- parentColl is not of type that can accept child collections - need to handle
-                LrErrors.throwUserError("Error in createCollection: Parent collection for " .. collName .. " is " ..
-                    parentColl:type() .. " - can't create child collection")
+                LrErrors.throwUserError("Error in createCollection: Parent collection for " .. collName .. " is " .. parentColl:type() .. " - can't create child collection")
                 stat.errors = stat.errors + 1
             else
                 local collectionSettings = {}
