@@ -45,6 +45,7 @@ _G.LrMD5 = import 'LrMD5'
 _G.LrExportSession = import 'LrExportSession'
 _G.LrExportSettings = import "LrExportSettings"
 
+
 -- Global requires
 _G.JSON = require "JSON"
 _G.utils = require "utils"
@@ -79,7 +80,7 @@ _G.iconPath = _PLUGIN:resourceId("icons/icon_med.png")
 -- _PLUGIN.VERSION is nil here for some reason, so hardcoding for now
 -- just need to ensure both places are updated together
 
-_G.versionInfo = { major=20260919, minor=36, revision=0 }
+_G.versionInfo = { major=20260920, minor=36, revision=0 }
 
 _G.pluginVersion = string.format("%d.%d", versionInfo.major, versionInfo.minor)
 -- Auto-update checker

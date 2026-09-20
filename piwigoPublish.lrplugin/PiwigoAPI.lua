@@ -683,7 +683,7 @@ local function vps_fixSpecialCollections(catalog, propertyTable, publishService,
 end
 
 -- *************************************************
-local function createCollectionsFromCatHierarchy(catNode, parentNode, propertyTable, statusData, depth)
+local function createCollectionsFromCatHierarchy(catNode, parentNode, propertyTable, statusData, progressScope, depth)
     -- Traverses the category hierarchy recursively, creating collections or collections sets as needed
     -- catNode is an category table item returned by pwg.categories.getList
     -- parenNode is the category table item of which this node is a child (blank for top level category)
@@ -691,6 +691,15 @@ local function createCollectionsFromCatHierarchy(catNode, parentNode, propertyTa
     -- depth is used internally to track nesting level.
 
     -- log:info("createCollectionsFromCatHierarchy - processing " .. catNode.id, catNode.name)
+
+
+    statusData.numAlbumsProcessed = statusData.numAlbumsProcessed + 1
+    progressScope:setCaption("Processed " .. statusData.numAlbumsProcessed .. " of " .. statusData.numAlbums)
+    progressScope:setPortionComplete(statusData.numAlbumsProcessed, statusData.numAlbums)
+    if progressScope:isCanceled() then
+        return statusData
+    end
+
     depth = depth or 0
     if depth > statusData.maxDepth then
         statusData.maxDepth = depth
@@ -710,7 +719,7 @@ local function createCollectionsFromCatHierarchy(catNode, parentNode, propertyTa
     -- now recursively process children of catNode
     if catNode.children and type(catNode.children) == 'table' then
         for _, child in ipairs(catNode.children) do
-            createCollectionsFromCatHierarchy(child, catNode, propertyTable, statusData, depth + 1)
+            createCollectionsFromCatHierarchy(child, catNode, propertyTable, statusData, progressScope, depth + 1)
         end
     end
 end
@@ -1563,28 +1572,47 @@ function PiwigoAPI.importAlbums(propertyTable)
         collectionSets = 0,
         collections = 0,
         errors = 0,
-        maxDepth = 0
+        maxDepth = 0,
+        numAlbums = 0,
+        numAlbumsProcessed = 0,
     }
-
-    local progressScope = LrProgressScope {
-        title = "Import album structure...",
-        caption = "Starting...",
-        functionContext = context
-    }
-
-    for cc, thisNode in pairs(catHierarchy) do
-        -- each thisNode is a top level Piwigo album
-        if progressScope:isCanceled() then
-            break
-        end
-        progressScope:setPortionComplete(cc, #catHierarchy)
-        progressScope:setCaption("Processing " .. cc .. " of " .. #catHierarchy .. " top level albums")
-        local parentNode = "" -- set to empty string to start at publishservice collection root
-        -- now create publishcollectionsets and publishcollections for this album and it's sub albums
-        createCollectionsFromCatHierarchy(thisNode, parentNode, propertyTable, statusData)
+    statusData.numAlbums = #allCats
+    if statusData.numAlbums == 0 then
+        LrDialogs.message("Import Piwigo Albums", "No albums found to import.")
+        return
     end
-    progressScope:done()
+    local numAlbumsProcessed = 0
+    local result = LrDialogs.confirm("Import Piwigo Albums",
+        "This will process " .. statusData.numAlbums .. " albums from Piwigo", "Ok", "Cancel")
+    if result ~= 'ok' then
+        return false
+    end
+    LrFunctionContext.callWithContext("importAlbumStructure", function(context)
+        local progressScope = LrDialogs.showModalProgressDialog({
+            title = "Import albums - " .. statusData.numAlbums .. " to process",
+            caption = "Starting...",
+            width = 300,
+            cannotCancel = false,
+            functionContext = context,
+        })
 
+
+        for cc, thisNode in pairs(catHierarchy) do
+            -- each thisNode is a top level Piwigo album
+            if progressScope:isCanceled() then
+                break
+            end
+            progressScope:setCaption("Processed " .. statusData.numAlbumsProcessed .. " of " .. statusData.numAlbums)
+            progressScope:setPortionComplete(statusData.numAlbumsProcessed, statusData.numAlbums)
+
+            local parentNode = "" -- set to empty string to start at publishservice collection root
+            -- now create publishcollectionsets and publishcollections for this album and it's sub albums
+            createCollectionsFromCatHierarchy(thisNode, parentNode, propertyTable, statusData, progressScope, 0)
+        end
+        progressScope:setCaption("Done")
+        progressScope:setPortionComplete(1, 1)
+        progressScope:done()
+    end)
     LrDialogs.message("Import Piwigo Albums",
         string.format("%s new collections, %s new collection sets, %s existing, %s errors", statusData.collections,
             statusData.collectionSets, statusData.existing, statusData.errors))
