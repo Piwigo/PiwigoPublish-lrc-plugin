@@ -5,6 +5,8 @@
 .DS_Store
 
 #localResources
+icon-source/
+legacyArchive/
 localResources/
 
 # not used
@@ -13,8 +15,8 @@ piwigoPublish.lrplugin/icons/piwigoPublish_1_5-assets/
 piwigoPublish.lrplugin/icons/piwigoPublish_2_0-assets/
 piwigoPublish.lrplugin/icons/piwigoPublish_1_0.psd
 piwigoPublish.lrplugin/icons/*psd
-piwigoPublish.lrplugin/lrcUtils.lua 
-piwigoPublish.lrplugin/PiwigoHelper.lua 
+piwigoPublish.lrplugin/lrcUtils.lua
+piwigoPublish.lrplugin/PiwigoHelper.lua
 
 # Other files
 *.bak

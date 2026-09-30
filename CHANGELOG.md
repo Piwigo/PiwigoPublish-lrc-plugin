@@ -1,4 +1,6 @@
 # Changelog
+
+
 ## [20260327.35]
 ### Fixed
 Plugin extra options consolidated to single menu item in Library -> Plug-in Extras -> Piwigo Publisher Extra Options
@@ -75,7 +77,7 @@ Fix #21 - bad argument #1 to '?' - see readme note on embedded metadata
 
 ## [20260105.23] - 2026-01-05
 ### Fixed
-Fix #24 rename album does not update custom metadata. Also fix error that incorrect albumname was used for metadata with special collections 
+Fix #24 rename album does not update custom metadata. Also fix error that incorrect albumname was used for metadata with special collections
 Fix regression introduced by 20260104.22 causing crash when creating new album or album set
 
 ## [20260104.22] - 2026-01-04
@@ -134,7 +136,7 @@ Fixed #18 Setting up another publish service on a different catalogue generates 
 
 ## [20251204.11] - 2025-12-04
 ### Fixed #7 Adding keywords to a photo directly via Piwigo API intermittently generates error 1003 Keyword already exists
-- 
+-
 
 ## [20251203.10] - 2025-12-03
 ### Added
@@ -173,10 +175,10 @@ Fixed #18 Setting up another publish service on a different catalogue generates 
 - Missing albums are recreated (with a new Piwigo Cat ID) during Publish process
 
 ### Fixed
-- Crashes when Piwigo albums are removed from Piwigo directly, leaving the Plugin collections inconsistent. 
+- Crashes when Piwigo albums are removed from Piwigo directly, leaving the Plugin collections inconsistent.
 - Inconsistent connection messages when multiple publish services using this plugin are created.
 - Regression bug causing images to be duplicated rather then refreshed
-- Correct behaviour when additional new publish services are created 
+- Correct behaviour when additional new publish services are created
 - refactored calls to LrHttp.get function
 
 ## [20251117.1] - 2025-11-17
