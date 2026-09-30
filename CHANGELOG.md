@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0]
+### Added
+Versioning moved to semantic versioning.  'Latest' release no longer checked by update checker - instead update checking now looks only for newer versions of the same major version. So v2.x only looks for newer v2.x and will ignore v3.x and above.
+
+## [20260020.36]
+### Fixed
+Fix #74 unable to create child collection in album import
+
+### Added
+Improved progress notification during album import process.
+Update checker prepared for move to Semantic Versioning
 
 ## [20260327.35]
 ### Fixed
