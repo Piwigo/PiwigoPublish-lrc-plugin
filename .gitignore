@@ -34,3 +34,6 @@ piwigoPublish.lrplugin/__i18n_tmp__/
 
 # Dist
 dist/
+
+# Companion Plugin
+piwigoPublish-CompanionPlugin/
