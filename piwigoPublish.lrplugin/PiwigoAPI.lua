@@ -107,13 +107,13 @@ local function httpPost(propertyTable, params, headers)
     -- convert table of name, value pairs to a urlencoded string
     local body = utils.buildBodyFromParams(params)
 
-    log:info("PiwigoAPI.pwConnect - connecting to " .. propertyTable.pwurl)
-    log:info("PiwigoAPI.pwConnect - body:\n" .. utils.serialiseVar(body))
+    log:info("PiwigoAPI.httpPost - connecting to " .. propertyTable.pwurl)
+    log:info("PiwigoAPI.httpPost - body:\n" .. utils.serialiseVar(body))
 
     local httpResponse, httpHeaders = LrHttp.post(propertyTable.pwurl, body, headers)
 
-    log:info("PiwigoAPI.pwConnect - response headers:\n" .. utils.serialiseVar(httpHeaders))
-    log:info("PiwigoAPI.pwConnect - response body:\n" .. tostring(httpResponse))
+    log:info("PiwigoAPI.httpPost - response headers:\n" .. utils.serialiseVar(httpHeaders))
+    log:info("PiwigoAPI.httpPost - response body:\n" .. tostring(httpResponse))
 
     if (httpHeaders.status == 201) or (httpHeaders.status == 200) then
         -- successful connection to Piwigo
@@ -759,7 +759,7 @@ local function applyAlbumSettings(catalog, coll, isSet, settings, remoteId, remo
         else
             coll:setCollectionSettings(settings)
         end
-    end)
+    end, { timeout = 120 })
 end
 
 -- *************************************************
@@ -828,7 +828,7 @@ function PiwigoAPI.createCollection(propertyTable, node, parentNode, isLeafNode,
             else
                 newColl = publishService:createPublishedCollection(collName, parentColl, true)
             end
-        end)
+        end, { timeout = 120 })
 
         if not newColl then
             stat.errors = stat.errors + 1
@@ -901,7 +901,7 @@ function PiwigoAPI.fixSpecialCollectionNames(catalog, publishService, propertyTa
                     log:info("PiwigoAPI.fixSpecialCollectionNames - " .. ccName .. " fixed to " .. newName)
                     catalog:withWriteAccessDo("Set Collection Name", function()
                         childCol:setName(newName)
-                    end)
+                    end, { timeout = 120 })
                 end
             end
         end
@@ -947,7 +947,7 @@ function PiwigoAPI.setCollectionDets(thisCollorSet, catalog, propertyTable, name
             thisCollorSet:setCollectionSetSettings(collectionSettings)
         end
 ]]
-    end)
+    end, { timeout = 120 })
 
     return true
 end
@@ -960,7 +960,7 @@ function PiwigoAPI.createPublishCollectionSet(catalog, publishService, propertyT
     local newColl
     catalog:withWriteAccessDo("Create PublishedCollectionSet ", function()
         newColl = publishService:createPublishedCollectionSet(name, parentSet, true)
-    end)
+    end, { timeout = 120 })
     -- add remoteids and urls to collection
     -- local metaData = {}
     -- metaData.name = name
@@ -978,7 +978,7 @@ function PiwigoAPI.createPublishCollection(catalog, publishService, propertyTabl
     local newColl
     catalog:withWriteAccessDo("Create PublishedCollection ", function()
         newColl = publishService:createPublishedCollection(name, parentSet, true)
-    end)
+    end, { timeout = 120 })
 
     -- add remoteids and urls to collection
     PiwigoAPI.setCollectionDets(newColl, catalog, propertyTable, name, remoteId, parentSet)
@@ -1086,7 +1086,7 @@ function PiwigoAPI.storeMetaData(catalog, lrPhoto, pluginData)
         lrPhoto:setPropertyForPlugin(_PLUGIN, "pwUploadDate", pluginData.pwUploadDate)
         lrPhoto:setPropertyForPlugin(_PLUGIN, "pwUploadTime", pluginData.pwUploadTime)
         lrPhoto:setPropertyForPlugin(_PLUGIN, "pwCommentSync", pluginData.pwCommentSync)
-    end)
+    end, { timeout = 120 })
 end
 
 -- *************************************************
@@ -1110,7 +1110,7 @@ function PiwigoAPI.updateMetaDataforCollection(propertyTable, pubCollection, met
             -- update metadata fields in lrPhoto
             catalog:withWriteAccessDo("Updating " .. lrPhoto:getFormattedMetadata("fileName"), function()
                 lrPhoto:setPropertyForPlugin(_PLUGIN, "pwAlbumName", albumName)
-            end)
+            end, { timeout = 120 })
         end
     end
 end
@@ -1266,6 +1266,8 @@ function PiwigoAPI.login(propertyTable)
     if not (propertyTable.LR_publish_connectionName) or propertyTable.LR_publish_connectionName == "" then
         propertyTable.LR_publish_connectionName = propertyTable.userName .. "@" .. propertyTable.host
     end
+
+
 
     local rv = PiwigoAPI.pwConnect(propertyTable)
     return rv
@@ -3328,8 +3330,14 @@ end
 -- *************************************************
 function PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable, forceRefresh)
     -- Detect whether the server-side companion plugin is installed/active.
-    local effectivePT, originalPT = utils.getEffectivePropertyTable(propertyTable)
 
+    local effectivePT, originalPT = utils.getEffectivePropertyTable(propertyTable)
+    -- server plugin is released foir v3 of plugin, so we will return without checking for it's presence in earlier plugin versions
+    if versionInfo.major < 3 then
+        effectivePT.piwigoPublishServerPluginAvailable = false
+        originalPT.piwigoPublishServerPluginAvailable = false
+        return false
+    end
     if not forceRefresh then
         if effectivePT.piwigoPublishServerPluginAvailable ~= nil then
             return effectivePT.piwigoPublishServerPluginAvailable
@@ -3338,6 +3346,8 @@ function PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable, forceRefresh)
             return originalPT.piwigoPublishServerPluginAvailable
         end
     end
+
+
     log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - checking server plugin availability with forceRefresh=" ..
         tostring(forceRefresh))
 
@@ -3358,6 +3368,7 @@ function PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable, forceRefresh)
     -- Some Lightroom callbacks pass a reduced publish settings table that has host/user
     -- but omits runtime session fields (Connected/cookieHeader). Re-login here so the
     -- capability probe can still call pwg.plugins.getList reliably.
+    --
     if (not effectivePT.Connected) or utils.nilOrEmpty(effectivePT.cookieHeader) then
         if not utils.nilOrEmpty(effectivePT.userName) and not utils.nilOrEmpty(effectivePT.userPW) then
             local loginOk = PiwigoAPI.login(effectivePT)
