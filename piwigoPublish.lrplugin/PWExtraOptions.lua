@@ -96,14 +96,13 @@ local function setAlbumCoverFromSelection(service)
     if result ~= 'ok' then
         return false
     end
-
-    if not publishSettings.Connected then
-        local rv = PiwigoAPI.login(publishSettings)
-        if not rv then
-            LrDialogs.message("SetAlbumCover - cannot connect to Piwigo")
-            return false
-        end
+    -- check connection to piwigo
+    local rv = PWConnectionManager.ensureConnection(publishSettings)
+    if not rv then
+        LrDialogs.message("SetAlbumCover - cannot connect to Piwigo at " .. publishSettings.url)
+        return false
     end
+
 
     if publishSettings.userStatus ~= "webmaster" then
         LrDialogs.message("User needs webmaster role on Piwigo gallery at " ..
@@ -274,7 +273,6 @@ local function convertSelectionCollectionToSet(publishService)
         return true
     end
     return false
-
 end
 
 -- *************************************************
@@ -518,7 +516,7 @@ local function main()
                     width_in_chars = 58,
                 },
             },
---[[
+            --[[
 -- currently commented out as LrC SDK doesn't expose current display order of photos in a published collection
 -- will be revisited
             f:spacer { height = 1 },

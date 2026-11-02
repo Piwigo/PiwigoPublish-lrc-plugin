@@ -440,16 +440,16 @@ function PublishTaskImageProcessing.processRenderedPhotos(functionContext, expor
     local progressScope = exportContext:configureProgress {
         title = "Publishing " .. nPhotos .. " photos to " .. propertyTable.host
     }
+
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            log:info('PublishTaskImageProcessing.processRenderedPhotos - propertyTable: ' .. utils.serialiseVar(anonymisedPropertyTable))
-            PWStatusManager.setPiwigoBusy(publishService, false)
-            LrErrors.throwUserError('Publish photos to Piwigo - cannot connect to piwigo at ' .. propertyTable.host)
-            return nil
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+    if not rv then
+        log:info('PublishTaskImageProcessing.processRenderedPhotos - propertyTable: ' .. utils.serialiseVar(anonymisedPropertyTable))
+        PWStatusManager.setPiwigoBusy(publishService, false)
+        LrErrors.throwUserError('Publish photos to Piwigo - cannot connect to piwigo at ' .. propertyTable.host)
+        return nil
     end
+
 
     local parentCollSet = publishedCollection:getParent()
     local parentID = ""
@@ -538,21 +538,7 @@ function PublishTaskImageProcessing.processRenderedPhotos(functionContext, expor
     -- now wait for photos to be exported and then upload to Piwigo
     for i, rendition in exportContext:renditions(renditionParams) do
         PWStatusManager.touchBusy(publishService)
-        -- reset connection every 75 uploads
-        resetConnectioncount = resetConnectioncount + 1
-        if resetConnectioncount > 75 then
-            resetConnectioncount = 0
-            log:info("PublishTaskImageProcessing.processRenderedPhotos - resetting Piwigo connection after 75 uploads")
-            rv = PiwigoAPI.login(propertyTable)
-            if not rv then
-                PWStatusManager.setPiwigoBusy(publishService, false)
-                PWStatusManager.setRenderPhotos(publishService, false)
-                log:info("PublishTaskImageProcessing.processRenderedPhotos - renditionSettings: " .. utils.serialiseVar(renditionParams))
-                LrErrors.throwUserError('Publish photos to Piwigo - cannot connect to piwigo at ' ..
-                    propertyTable.host)
-                break
-            end
-        end
+
 
         local lrPhoto = rendition.photo
         local remoteId = rendition.publishedPhotoId or ""
@@ -897,14 +883,13 @@ local function doDeletePhotos(publishSettings, arrayOfPhotoIds, deletedCallback,
     local pwCatID = publishedCollection:getRemoteId()
 
     -- check connection to piwigo
-    if not (publishSettings.Connected) then
-        local rv = PiwigoAPI.login(publishSettings)
-        if not rv then
-            LrErrors.throwUserError('Delete Photos from Collection - cannot connect to piwigo at ' .. publishSettings
-                .url)
-            return nil
-        end
+    local rv = PWConnectionManager.ensureConnection(publishSettings)
+
+    if not rv then
+        LrErrors.throwUserError('Delete Photos from Collection - cannot connect to piwigo at ' .. publishSettings.url)
+        return nil
     end
+
 
     -- publishService busy flag is held by the caller for the duration of these Piwigo calls
     do

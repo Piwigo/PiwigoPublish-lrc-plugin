@@ -33,10 +33,12 @@ local pwServiceState = {}
 -- A lock with no heartbeat for BUSY_STALE_SECONDS is treated as abandoned (e.g. LrC crashed while busy).
 local BUSY_STALE_SECONDS = 600
 
+--*******************************************
 local function sharedPrefs()
     return import 'LrPrefs'.prefsForPlugin()
 end
 
+--*******************************************
 local function currentBusyOwner()
     local p = sharedPrefs()
     local owner = p.piwigoBusyOwner
@@ -49,6 +51,7 @@ local function currentBusyOwner()
     end
     return owner
 end
+
 --*******************************************
 local function ensureState(publishService)
     local id = publishService.localIdentifier

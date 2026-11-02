@@ -5,7 +5,9 @@
 Versioning moved to semantic versioning.  'Latest' release no longer checked by update checker - instead update checking now looks only for newer versions of the same major version. So v2.x only looks for newer v2.x and will ignore v3.x and above.
 
 ### Fixed
-Fixed code intended to prevent multiple plugin operations happening concurrently which was only operational within the same publish service. It now operates across all publish services using this plugin.
+Fix #71
+Fix #76
+Connection manager now manages connections to Piwigo and ensures login credentials are not overwritten by spurious login attempts
 
 ## [20260020.36]
 ### Fixed

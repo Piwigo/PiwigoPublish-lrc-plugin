@@ -1267,8 +1267,6 @@ function PiwigoAPI.login(propertyTable)
         propertyTable.LR_publish_connectionName = propertyTable.userName .. "@" .. propertyTable.host
     end
 
-
-
     local rv = PiwigoAPI.pwConnect(propertyTable)
     return rv
 end
@@ -1312,8 +1310,6 @@ function PiwigoAPI.pwConnect(propertyTable)
     local httpOK = httpHeaders and (httpHeaders.status >= 200 and httpHeaders.status < 300)
     if httpOK then
         -- successful connection to Piwigo
-        -- Now check login result
-        -- Decode JSON safely
         local ok, rtnBody = pcall(JSON.decode, JSON, httpResponse)
         if not ok or type(rtnBody) ~= "table" then
             log:info("PiwigoAPI.pwConnect - connecting to " .. propertyTable.pwurl)
@@ -1379,6 +1375,9 @@ function PiwigoAPI.pwConnect(propertyTable)
         return false
     end
 
+    -- persist session credentials
+    PWConnectionManager.storeCredentials(propertyTable)
+
     -- now check if piwigo publish plugin is available
     rv = PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable, true)
     if not rv then
@@ -1407,12 +1406,11 @@ function PiwigoAPI.checkAdmin(propertyTable)
     local callStatus = {}
     callStatus.status = false
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = 'PiwigoAPI.checkAdmin - cannot connect to piwigo'
-            return callStatus
-        end
+
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+    if not rv then
+        callStatus.statusMsg = 'PiwigoAPI.checkAdmin - cannot connect to piwigo'
+        return callStatus
     end
 
     -- check role is admin level
@@ -1545,13 +1543,11 @@ function PiwigoAPI.importAlbums(propertyTable)
         return
     end
     -- check connection to piwigo
-    if not propertyTable.Connected then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            utils.handleError('PiwigoAPI:importAlbums - cannot connect to piwigo',
-                "Error: Cannot connect to Piwigo server.")
-            return
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        utils.handleError('PiwigoAPI:importAlbums - cannot connect to piwigo', "Error: Cannot connect to Piwigo server.")
+        return
     end
     -- get categories from piwigo
     local allCats
@@ -1626,12 +1622,11 @@ function PiwigoAPI.pwCategoriesGetThis(propertyTable, thisCat)
     local rv
 
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            LrDialogs.message("PiwigoAPI.pwCategoriesGetThis - cannot connect to piwigo - ")
-            return nil
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        LrDialogs.message("PiwigoAPI.pwCategoriesGetThis - cannot connect to piwigo - ")
+        return nil
     end
 
     -- check role is admin level
@@ -1716,12 +1711,11 @@ function PiwigoAPI.pwCategoriesMove(propertyTable, info, thisCat, newCat, callSt
     local rv
 
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = 'PiwigoAPI:pwCategoriesMove - cannot connect to piwigo'
-            return callStatus
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = 'PiwigoAPI:pwCategoriesMove - cannot connect to piwigo'
+        return callStatus
     end
 
     -- check role is admin level
@@ -1794,14 +1788,12 @@ function PiwigoAPI.pwCategoriesAdd(propertyTable, info, metaData, callStatus)
     -- get parent collection for publishedCollection
     -- if root then create new category with no parent otherwise use remote id for pareent
 
-    -- use pwg.categories.add
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = 'PiwigoAPI:pwCategoriesAdd - cannot connect to piwigo'
-            return callStatus
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = 'PiwigoAPI:pwCategoriesAdd - cannot connect to piwigo'
+        return callStatus
     end
 
     -- check role is admin level
@@ -1880,12 +1872,11 @@ function PiwigoAPI.pwCategoriesDelete(propertyTable, info, metaData, callStatus)
 
     local checkCats
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = 'PiwigoAPI:pwCategoriesDelete - cannot connect to piwigo'
-            return callStatus
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = 'PiwigoAPI:pwCategoriesDelete - cannot connect to piwigo'
+        return callStatus
     end
 
     -- check role is admin level
@@ -1968,12 +1959,11 @@ function PiwigoAPI.pwCategoriesSetinfo(propertyTable, info, metaData)
     local rv
 
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = 'PiwigoAPI.pwCategoriesSetinfo - cannot connect to piwigo'
-            return callStatus
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = 'PiwigoAPI.pwCategoriesSetinfo - cannot connect to piwigo'
+        return callStatus
     end
 
     -- check role is admin level
@@ -2070,12 +2060,12 @@ function PiwigoAPI.pwCategoriesSetSortOrder(propertyTable, categoryId, imageOrde
         " imageOrder=" .. tostring(imageOrder))
     local callStatus = { status = false, statusMsg = "" }
 
-    if not propertyTable.Connected then
-        local rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = "PiwigoAPI.pwCategoriesSetSortOrder - cannot connect to piwigo"
-            return callStatus
-        end
+    -- check connection to piwigo
+    local rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = "PiwigoAPI.pwCategoriesSetSortOrder - cannot connect to piwigo"
+        return callStatus
     end
 
     local params = {
@@ -2195,13 +2185,12 @@ function PiwigoAPI.associateImageToCategory(propertyTable, imageId, categoryId)
     local callStatus = { status = false }
     local rv
 
-    -- Check connection
-    if not propertyTable.Connected then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = "Cannot connect to Piwigo"
-            return callStatus
-        end
+    -- check connection to piwigo
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = "Cannot connect to Piwigo"
+        return callStatus
     end
 
     local params = {
@@ -2236,13 +2225,13 @@ function PiwigoAPI.dissociateImageFromCategory(propertyTable, imageId, categoryI
     local rv
 
     -- Check connection
-    if not propertyTable.Connected then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = "Cannot connect to Piwigo"
-            return callStatus
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = "Cannot connect to Piwigo"
+        return callStatus
     end
+
 
     -- First, get current categories for this image
     local checkStatus = PiwigoAPI.checkPhoto(propertyTable, imageId)
@@ -2475,12 +2464,11 @@ function PiwigoAPI.updateMetadata(propertyTable, lrPhoto, metaData)
     callStatus.status = false
     local rv
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = 'PiwigoAPI:updateMetadata - cannot connect to piwigo'
-            return callStatus
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = 'PiwigoAPI:updateMetadata - cannot connect to piwigo'
+        return callStatus
     end
     -- check role is admin level
     if propertyTable.userStatus ~= "webmaster" then
@@ -2613,12 +2601,11 @@ function PiwigoAPI.deletePhoto(propertyTable, pwCatID, pwImageID, callStatus)
     callStatus.status = false
     local rv
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            callStatus.statusMsg = 'PiwigoAPI:deletePhoto - cannot connect to piwigo'
-            return callStatus
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        callStatus.statusMsg = 'PiwigoAPI:deletePhoto - cannot connect to piwigo'
+        return callStatus
     end
     if pwImageID == "" then
         callStatus.statusMsg = "PiwigoAPI:deletePhoto - missing Piwigo image ID - cannot delete photo"
@@ -2693,12 +2680,11 @@ function PiwigoAPI.pwImagesSetRank(publishSettings, categoryId, imageIdSequence)
 
     local rv
     -- check connection to piwigo
-    if not (publishSettings.Connected) then
-        rv = PiwigoAPI.login(publishSettings)
-        if not rv then
-            callStatus.statusMsg = "PiwigoAPI.pwImagesSetRank - cannot connect to piwigo"
-            return callStatus
-        end
+    rv = PWConnectionManager.ensureConnection(publishSettings)
+
+    if not rv then
+        callStatus.statusMsg = "PiwigoAPI.pwImagesSetRank - cannot connect to piwigo"
+        return callStatus
     end
 
     -- check role is admin level
@@ -2754,12 +2740,11 @@ function PiwigoAPI.pwCheckComments(publishSettings)
     log:info("PiwigoAPI.pwCheckComments")
     local rv
     -- check connection to piwigo
-    if not (publishSettings.Connected) then
-        rv = PiwigoAPI.login(publishSettings)
-        if not rv then
-            LrDialogs.message("PiwigoAPI.pwCheckComments - cannot connect to piwigo")
-            return nil
-        end
+    rv = PWConnectionManager.ensureConnection(publishSettings)
+
+    if not rv then
+        LrDialogs.message("PiwigoAPI.pwCheckComments - cannot connect to piwigo")
+        return nil
     end
 
     -- check role is admin level
@@ -2784,15 +2769,14 @@ end
 function PiwigoAPI.getComments(publishSettings, metaData)
     -- get comments for photo from Piwigo
 
-
+    log:info("PiwigoAPI.getComments")
     local rv
     -- check connection to piwigo
-    if not (publishSettings.Connected) then
-        rv = PiwigoAPI.login(publishSettings)
-        if not rv then
-            LrDialogs.message("PiwigoAPI.getComments - cannot connect to piwigo")
-            return nil
-        end
+    rv = PWConnectionManager.ensureConnection(publishSettings)
+
+    if not rv then
+        LrDialogs.message("PiwigoAPI.getComments - cannot connect to piwigo")
+        return nil
     end
 
     -- check role is admin level
@@ -2819,15 +2803,15 @@ function PiwigoAPI.addComment(publishSettings, metaData)
     log:info("PiwigoAPI.addComment")
     -- use pwg.images.addComment
     local rv
+
     -- check connection to piwigo
-    --if not (publishSettings.Connected) then
-    log:info("PiwigoAPI.addComment - PiwigoAPI.login")
-    rv = PiwigoAPI.login(publishSettings)
+    rv = PWConnectionManager.ensureConnection(publishSettings)
+
     if not rv then
         LrDialogs.message("PiwigoAPI.addComment - cannot connect to piwigo")
         return false
     end
-    --end
+
 
     -- get antispam token from image details (unique for each image)
     local rtnStatus = PiwigoAPI.checkPhoto(publishSettings, metaData.remoteId)
@@ -3047,12 +3031,11 @@ function PiwigoAPI.setAlbumCover(publishService)
     local rv
 
     -- check connection to piwigo
-    if not (publishSettings.Connected) then
-        rv = PiwigoAPI.login(publishSettings)
-        if not rv then
-            LrDialogs.message("PiwigoAPI.setAlbumCover - cannot connect to piwigo")
-            return false
-        end
+    rv = PWConnectionManager.ensureConnection(publishSettings)
+
+    if not rv then
+        LrDialogs.message("PiwigoAPI.setAlbumCover - cannot connect to piwigo")
+        return false
     end
 
     -- check role is admin level
@@ -3090,12 +3073,11 @@ function PiwigoAPI.getTagList(propertyTable)
 
     local rv
     -- check connection to piwigo
-    if not (propertyTable.Connected) then
-        rv = PiwigoAPI.login(propertyTable)
-        if not rv then
-            LrDialogs.message("PiwigoAPI.getTagList - cannot connect to piwigo")
-            return false
-        end
+    rv = PWConnectionManager.ensureConnection(propertyTable)
+
+    if not rv then
+        LrDialogs.message("PiwigoAPI.getTagList - cannot connect to piwigo")
+        return false
     end
     local callStatus = PiwigoAPI.checkAdmin(propertyTable)
     if not callStatus.status then
@@ -3369,35 +3351,18 @@ function PiwigoAPI.hasPiwigoPublishServerPlugin(propertyTable, forceRefresh)
     -- but omits runtime session fields (Connected/cookieHeader). Re-login here so the
     -- capability probe can still call pwg.plugins.getList reliably.
     --
-    if (not effectivePT.Connected) or utils.nilOrEmpty(effectivePT.cookieHeader) then
-        if not utils.nilOrEmpty(effectivePT.userName) and not utils.nilOrEmpty(effectivePT.userPW) then
-            local loginOk = PiwigoAPI.login(effectivePT)
-            if originalPT and originalPT ~= effectivePT then
-                originalPT.Connected = effectivePT.Connected
-                originalPT.cookieHeader = effectivePT.cookieHeader
-                originalPT.SessionCookie = effectivePT.SessionCookie
-                originalPT.cookies = effectivePT.cookies
-                originalPT.userStatus = effectivePT.userStatus
-                originalPT.token = effectivePT.token
-                originalPT.pwVersion = effectivePT.pwVersion
-            end
-            if not loginOk then
-                log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - login failed while checking plugin capability")
-                effectivePT.piwigoPublishServerPluginAvailable = false
-                if originalPT ~= effectivePT then
-                    originalPT.piwigoPublishServerPluginAvailable = false
-                end
-                return false
-            end
-        else
-            log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - missing credentials for capability check")
-            effectivePT.piwigoPublishServerPluginAvailable = false
-            if originalPT ~= effectivePT then
-                originalPT.piwigoPublishServerPluginAvailable = false
-            end
-            return false
+    -- ensure credentials are loaded from the connection manager
+    local rv = PWConnectionManager.ensureConnection(effectivePT)
+
+    if not rv then
+        log:info("PiwigoAPI.hasPiwigoPublishServerPlugin - login failed while checking plugin capability")
+        effectivePT.piwigoPublishServerPluginAvailable = false
+        if originalPT ~= effectivePT then
+            originalPT.piwigoPublishServerPluginAvailable = false
         end
+        return false
     end
+
 
     local headers = {}
     if effectivePT.cookieHeader ~= nil then
