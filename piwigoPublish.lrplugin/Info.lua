@@ -38,15 +38,7 @@ return {
         file = "PublishServiceProvider.lua",
     },
 
-    --[[
-    -- define custom metadata data for this plugin
-    PublishSettings = {
-        publishMetadata = {
-            { id = 'myCustomStatus', title = 'Status', type = 'string' },
-            { id = 'syncToken', title = 'Token', type = 'string' },
-        },
-    },
-]]
+
     LrLibraryMenuItems = {
         -- Menu items for Library -> Plug In Extras -> Piwigo Publisher
         {
