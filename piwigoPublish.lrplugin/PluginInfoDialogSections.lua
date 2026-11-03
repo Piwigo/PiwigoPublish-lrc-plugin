@@ -39,6 +39,7 @@ local GITHUB_URL = "https://github.com/Piwigo/PiwigoPublish-lrc-plugin"
 -- Reset plugin preferences (optionally filtered by prefix)
 local function resetPluginPrefs(prefix)
     log:info("resetPluginPrefs \n" .. utils.serialiseVar(prefs))
+    --[[
     for k, _ in prefs:pairs() do
         if prefix then
             if k:find(prefix, 1, true) == 1 then
@@ -48,6 +49,7 @@ local function resetPluginPrefs(prefix)
             prefs[k] = nil
         end
     end
+    --]]
 end
 
 -- *************************************************
@@ -87,7 +89,6 @@ function PluginInfoDialogSections.startDialog(propertyTable)
     propertyTable.debugToFile = prefs.debugToFile
     propertyTable.checkUpdatesOnStartup = prefs.checkUpdatesOnStartup
     propertyTable.debugFailedUpload = prefs.debugFailedUpload
-
 end
 
 -- *************************************************

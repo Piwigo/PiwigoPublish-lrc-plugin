@@ -396,7 +396,7 @@ end
 function PublishTaskImageProcessing.processRenderedPhotos(functionContext, exportContext)
     -- render photos and upload to Piwigo
 
-    log:info("PublishTaskImageProcessing.processRenderedPhotos - version: " .. utils.serialiseVar(_PLUGIN.VERSION))
+    log:info("PublishTaskImageProcessing.processRenderedPhotos - version: " .. pluginVersion)
     local callStatus = {}
     local catalog = LrApplication.activeCatalog()
     local exportSession = exportContext.exportSession
@@ -854,6 +854,8 @@ end
 -- ************************************************
 local function doDeletePhotos(publishSettings, arrayOfPhotoIds, deletedCallback, publishedCollection, publishService)
     local callStatus = {}
+    local rtnStatus = {}
+    rtnStatus.status = false
     local catalog = LrApplication.activeCatalog()
     local publishedPhotos = publishedCollection:getPublishedPhotos()
 
@@ -886,8 +888,8 @@ local function doDeletePhotos(publishSettings, arrayOfPhotoIds, deletedCallback,
     local rv = PWConnectionManager.ensureConnection(publishSettings)
 
     if not rv then
-        LrErrors.throwUserError('Delete Photos from Collection - cannot connect to piwigo at ' .. publishSettings.url)
-        return nil
+        rtnStatus.statusMsg = 'Cannot connect to Piwigo at ' .. publishSettings.url
+        return rtnStatus
     end
 
 
@@ -957,12 +959,13 @@ local function doDeletePhotos(publishSettings, arrayOfPhotoIds, deletedCallback,
                 thisPhotoToUnpublish[4] = true
                 deletedCallback(thispwImageID)
             else
-                LrErrors.throwUserError(
-                    'Failed to delete photo ' .. thispwImageID .. ' from Piwigo - ' .. callStatus.statusMsg,
-                    'Failed to delete photo')
+                rtnStatus.statusMsg = 'Failed to delete photo ' .. thispwImageID .. ' from Piwigo - ' .. callStatus.statusMsg
+                return rtnStatus
             end
         end
     end
+    rtnStatus.status = true
+    return rtnStatus
 end
 
 -- ************************************************
@@ -982,11 +985,10 @@ function PublishTaskImageProcessing.deletePhotosFromPublishedCollection(publishS
         return nil
     end
     -- always release the busy flag, then re-raise any error
-    local ok, err = pcall(doDeletePhotos, publishSettings, arrayOfPhotoIds, deletedCallback, publishedCollection,
-        publishService)
+    local rtnStatus = doDeletePhotos(publishSettings, arrayOfPhotoIds, deletedCallback, publishedCollection, publishService)
     PWStatusManager.setPiwigoBusy(publishService, false)
-    if not ok then
-        error(err, 0)
+    if not rtnStatus.status then
+        error(rtnStatus.statusMsg, 0)
     end
 end
 

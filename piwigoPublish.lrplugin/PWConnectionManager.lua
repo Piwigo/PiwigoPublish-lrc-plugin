@@ -121,6 +121,7 @@ end
 function PWConnectionManager.ensureConnection(propertyTable)
     -- check connection status and login if necessary
     local rv = PWConnectionManager.loadCredentials(propertyTable)
+
     if rv then
         return true
     end
@@ -128,6 +129,24 @@ function PWConnectionManager.ensureConnection(propertyTable)
     PWConnectionManager.clearCredentials(propertyTable)
     rv = PiwigoAPI.login(propertyTable)
     return rv
+end
+
+--*******************************************
+function PWConnectionManager.clearCredentialsFromPrefs(prefsTable)
+    -- clear all authentication credentials held in prefs
+    -- run on initialization and closedown to remove all credentials
+    local source = rawget(prefsTable, "< contents >") or prefsTable
+    local stale = {}
+    for k in pairs(source) do
+        if type(k) == "string" and k:find("^piwigoSession_") then
+            stale[#stale + 1] = k
+        end
+    end
+    for _, k in ipairs(stale) do
+        prefsTable[k] = nil
+    end
+    log:info("PWConnectionManager.clearCredentialsFromPrefs - cleared " .. #stale .. " stored sessions")
+    return #stale
 end
 
 --*******************************************

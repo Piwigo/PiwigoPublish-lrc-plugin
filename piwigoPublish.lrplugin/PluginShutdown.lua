@@ -23,12 +23,5 @@
 
 -- clear stale authentication credentials held in prefs
 log:info("piwigoPublish PluginShutdown - clearing stale authentication credentials")
-local stale = {}
-if prefs and type(prefs) == "table" then
-    for k in pairs(prefs) do
-        if type(k) == "string" and k:find("^piwigoSession_") then stale[#stale + 1] = k end
-    end
-    for _, k in ipairs(stale) do
-        prefs[k] = nil
-    end
-end
+
+PWConnectionManager.clearCredentialsFromPrefs(prefs)

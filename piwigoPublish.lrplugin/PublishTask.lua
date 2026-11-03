@@ -493,9 +493,11 @@ function PublishTask.reparentPublishedCollection(publishSettings, info)
     -- serviceState is a global table containing publishService specific statusData
     local serviceState = PWStatusManager.getServiceState(publishService)
     local serviceId = publishService.localIdentifier
-    if PWStatusManager.isPiwigoBusy(publishService) then
+    --if PWStatusManager.isPiwigoBusy(publishService) then
+    if not PWStatusManager.tryAcquireBusy(publishService) then
         -- pwigo processing another request - throw error
-        error("Piwigo Publisher is busy. Please try later.")
+        LrErrors.throwUserError("Piwigo Publisher is busy. Please try later.")
+        return nil
     end
 
     -- check for special collection and prevent change if so
@@ -507,7 +509,8 @@ function PublishTask.reparentPublishedCollection(publishSettings, info)
     local thisName = info.name
     if string.sub(thisName, 1, 1) == "[" and string.sub(thisName, -1) == "]" then
         LrErrors.throwUserError("Cannot re-parent a special collection")
-        return false
+        PWStatusManager.setPiwigoBusy(publishService, false)
+        return nil
     end
 
     local callStatus = {}
@@ -524,8 +527,10 @@ function PublishTask.reparentPublishedCollection(publishSettings, info)
         callStatus = PiwigoAPI.pwCategoriesMove(publishSettings, info, myCat, parentCat, callStatus)
         if not (callStatus.status) then
             LrErrors.throwUserError("Error moving album: " .. callStatus.statusMsg)
+            PWStatusManager.setPiwigoBusy(publishService, false)
             return false
         end
+        PWStatusManager.setPiwigoBusy(publishService, false)
         return true
     end)
 end

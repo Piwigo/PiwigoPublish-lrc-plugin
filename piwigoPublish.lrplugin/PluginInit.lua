@@ -75,14 +75,8 @@ end
 
 _G.iconPath = _PLUGIN:resourceId("icons/icon_med.png")
 
--- clear stale authentication credentials held in prefs
-local stale = {}
-for k in pairs(prefs) do
-    if type(k) == "string" and k:find("^piwigoSession_") then stale[#stale + 1] = k end
-end
-for _, k in ipairs(stale) do
-    prefs[k] = nil
-end
+-- clear all authentication credentials held in prefs
+PWConnectionManager.clearCredentialsFromPrefs(prefs)
 
 -- Build version string from Info.lua VERSION table
 --local versionInfo = _PLUGIN.VERSION or { major = 0, minor = 0, revision = 0 }
