@@ -224,14 +224,14 @@ end
 -- Compare effective Lightroom resize-related export settings and report first difference.
 function utils.resizeSettingsDiffer(originalSettings, newSettings)
     local keyDefs = {
-        { name = 'LR_size_doConstrain',        type = 'bool' },
+        { name = 'LR_size_doConstrain', type = 'bool' },
         { name = 'LR_size_userWantsConstrain', type = 'bool' },
-        { name = 'LR_size_doNotEnlarge',       type = 'bool',   aliases = { 'LR_size_dontEnlarge' } },
-        { name = 'LR_size_maxWidth',           type = 'number', aliases = { 'LR_size_maxW' } },
-        { name = 'LR_size_maxHeight',          type = 'number', aliases = { 'LR_size_maxH' } },
-        { name = 'LR_size_percentage',         type = 'number' },
-        { name = 'LR_size_resizeType',         type = 'string' },
-        { name = 'LR_size_units',              type = 'string' },
+        { name = 'LR_size_doNotEnlarge', type = 'bool', aliases = { 'LR_size_dontEnlarge' } },
+        { name = 'LR_size_maxWidth', type = 'number', aliases = { 'LR_size_maxW' } },
+        { name = 'LR_size_maxHeight', type = 'number', aliases = { 'LR_size_maxH' } },
+        { name = 'LR_size_percentage', type = 'number' },
+        { name = 'LR_size_resizeType', type = 'string' },
+        { name = 'LR_size_units', type = 'string' },
     }
 
     local function getValue(settings, keyDef)
@@ -915,7 +915,7 @@ end
 
 -- *************************************************
 function utils.getPhotoMetadata(publishSettings, lrPhoto, collectionSettings)
-    -- build set of metadata to be sent to Piwigo
+    -- build set of metadata to be send to Piwigo
     local metaData = {}
 
     local useTitleFormat = publishSettings.mdTitle

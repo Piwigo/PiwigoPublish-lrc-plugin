@@ -106,6 +106,7 @@ function PublishTask.imposeSortOrderOnPublishedCollection(publishSettings, info,
             log:info("PublishTask.imposeSortOrderOnPublishedCollection - syncing sort order for category " ..
                 tostring(categoryId) .. ", " .. #finalSequence .. " photos")
             -- If the companion server plugin is available, force album sorting to use rank first.
+
             if PiwigoAPI.hasPiwigoPublishServerPlugin(publishSettings, false) then
                 local orderStatus = PiwigoAPI.pwCategoriesSetSortOrder(publishSettings, categoryId, "rank ASC")
                 if not orderStatus.status then
@@ -270,7 +271,7 @@ function PublishTask.updateCollectionSettings(publishSettings, info)
     local serviceState = PWStatusManager.getServiceState(publishService)
     local serviceId = publishService.localIdentifier
     log:info("PublishTask.updateCollectionSettings")
-    if serviceState.PiwigoBusy then
+    if PWStatusManager.isPiwigoBusy(publishService) then
         -- pwigo processing another request - throw error
         error("Piwigo Publisher is busy. Please try later.")
     end
@@ -394,7 +395,7 @@ function PublishTask.updateCollectionSetSettings(publishSettings, info)
     -- serviceState is a global table containing publishService specific statusData
     local serviceState = PWStatusManager.getServiceState(publishService)
     local serviceId = publishService.localIdentifier
-    if serviceState.PiwigoBusy then
+    if PWStatusManager.isPiwigoBusy(publishService) then
         -- pwigo processing another request - throw error
         error("Piwigo Publisher is busy. Please try later.")
     end
@@ -492,9 +493,11 @@ function PublishTask.reparentPublishedCollection(publishSettings, info)
     -- serviceState is a global table containing publishService specific statusData
     local serviceState = PWStatusManager.getServiceState(publishService)
     local serviceId = publishService.localIdentifier
-    if serviceState.PiwigoBusy then
+    --if PWStatusManager.isPiwigoBusy(publishService) then
+    if not PWStatusManager.tryAcquireBusy(publishService) then
         -- pwigo processing another request - throw error
-        error("Piwigo Publisher is busy. Please try later.")
+        LrErrors.throwUserError("Piwigo Publisher is busy. Please try later.")
+        return nil
     end
 
     -- check for special collection and prevent change if so
@@ -506,7 +509,8 @@ function PublishTask.reparentPublishedCollection(publishSettings, info)
     local thisName = info.name
     if string.sub(thisName, 1, 1) == "[" and string.sub(thisName, -1) == "]" then
         LrErrors.throwUserError("Cannot re-parent a special collection")
-        return false
+        PWStatusManager.setPiwigoBusy(publishService, false)
+        return nil
     end
 
     local callStatus = {}
@@ -523,8 +527,10 @@ function PublishTask.reparentPublishedCollection(publishSettings, info)
         callStatus = PiwigoAPI.pwCategoriesMove(publishSettings, info, myCat, parentCat, callStatus)
         if not (callStatus.status) then
             LrErrors.throwUserError("Error moving album: " .. callStatus.statusMsg)
+            PWStatusManager.setPiwigoBusy(publishService, false)
             return false
         end
+        PWStatusManager.setPiwigoBusy(publishService, false)
         return true
     end)
 end
@@ -571,7 +577,7 @@ function PublishTask.renamePublishedCollection(publishSettings, info)
         if utils.nilOrEmpty(remoteId) then
             callStatus.statusMsg = "no album found on Piwigo"
         else
-            if serviceState.PiwigoBusy then
+            if PWStatusManager.isPiwigoBusy(publishService) then
                 callStatus.statusMsg = "Piwigo Publisher is busy. Please try later."
             else
                 callStatus = PiwigoAPI.pwCategoriesSetinfo(publishSettings, info, metaData)
@@ -627,7 +633,7 @@ function PublishTask.deletePublishedCollection(publishSettings, info)
     end
     -- serviceState is a global table containing publishService specific statusData
     local serviceState = PWStatusManager.getServiceState(publishService)
-    if serviceState.PiwigoBusy then
+    if PWStatusManager.isPiwigoBusy(publishService) then
         -- pwigo processing another request - throw error
         error("Piwigo Publisher is busy. Please try later.")
     end

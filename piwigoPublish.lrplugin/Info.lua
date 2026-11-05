@@ -1,5 +1,5 @@
 --[[
-   
+
     Info.lua
 
     Copyright (C) 2024 Fiona Boston <fiona@fbphotography.uk>.
@@ -20,39 +20,34 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ]]
 return {
-    LrSdkVersion = 14.3,
-    LrSdkMinimumVersion = 6.0,
-    LrPluginName = "Piwigo Publisher",
+    LrSdkVersion            = 14.3,
+    LrSdkMinimumVersion     = 6.0,
+    LrPluginName            = "Piwigo Publisher",
     -- typo in PwigoPublish is noted but can't be changed without forcing all services using this plugin to be re-initialised.
-    LrToolkitIdentifier = "fiona.boston.PwigoPublish",
-    LrMetadataProvider  = 'CustomMetadata.lua',
+    LrToolkitIdentifier     = "fiona.boston.PwigoPublish",
+    LrMetadataProvider      = 'CustomMetadata.lua',
     LrMetadataTagsetFactory = 'Tagset.lua',
-    LrInitPlugin = "Init.lua",
-
-	LrExportServiceProvider = {
-		title = "Piwigo Publisher",
-		file = "PublishServiceProvider.lua",
-	},
-
--- define custom metadata data for this plugin
-    PublishSettings = {
-        publishMetadata = {
-            { id = 'myCustomStatus', title = 'Status', type = 'string' },
-            { id = 'syncToken', title = 'Token', type = 'string' },
-        },
+    LrInitPlugin            = "PluginInit.lua",
+    LrShutdownPlugin        = "PluginShutdown.lua",
+    -- LrEnablePlugin          = "PluginInit.lua",
+    -- LrDisablePlugin         = "PluginShutdown.lua",
+    LrShutdownApp           = "PluginShutdown.lua",
+    LrPluginInfoUrl         = "https://github.com/fionaboston/lrc-plugins/PiwigoPublish",
+    LrExportServiceProvider = {
+        title = "Piwigo Publisher",
+        file = "PublishServiceProvider.lua",
     },
-    
+
+
     LrLibraryMenuItems = {
         -- Menu items for Library -> Plug In Extras -> Piwigo Publisher
-        {        
+        {
             title = "Piwigo Publisher Extra Options",
             file = "PWExtraOptions.lua",
         },
-        
-
     },
-    
-	LrPluginInfoProvider = 'PluginInfo.lua',
 
-    VERSION = { major=20260920, minor=36, revision=0 },
+    LrPluginInfoProvider = 'PluginInfo.lua',
+
+    VERSION = { major = 2, minor = 0, revision = 0 },
 }

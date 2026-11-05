@@ -26,6 +26,32 @@
 local PWStatusManager = {}
 
 local pwServiceState = {}
+
+-- Lightroom runs each publish in its own Lua environment, so module-level tables are NOT shared
+-- between concurrent operations. The busy lock is therefore held in plugin prefs (shared across environments):
+-- piwigoBusyOwner = localIdentifier of the service holding the lock, piwigoBusyTime = last heartbeat.
+-- A lock with no heartbeat for BUSY_STALE_SECONDS is treated as abandoned (e.g. LrC crashed while busy).
+local BUSY_STALE_SECONDS = 600
+
+--*******************************************
+local function sharedPrefs()
+    return import 'LrPrefs'.prefsForPlugin()
+end
+
+--*******************************************
+local function currentBusyOwner()
+    local p = sharedPrefs()
+    local owner = p.piwigoBusyOwner
+    if owner == nil or owner == "" then
+        return nil
+    end
+    if os.time() - (p.piwigoBusyTime or 0) > BUSY_STALE_SECONDS then
+        log:info("PWStatusManager - ignoring stale busy lock held by service " .. tostring(owner))
+        return nil
+    end
+    return owner
+end
+
 --*******************************************
 local function ensureState(publishService)
     local id = publishService.localIdentifier
@@ -51,7 +77,48 @@ end
 
 --*******************************************
 function PWStatusManager.setPiwigoBusy(publishService, setValue)
+    local id = publishService.localIdentifier
     ensureState(publishService).PiwigoBusy = setValue
+    if setValue then
+        sharedPrefs().piwigoBusyOwner = id
+        sharedPrefs().piwigoBusyTime = os.time()
+    elseif sharedPrefs().piwigoBusyOwner == id then
+        -- only the holder may release
+        sharedPrefs().piwigoBusyOwner = ""
+        sharedPrefs().piwigoBusyTime = 0
+    end
+    log:info("PWStatusManager.setPiwigoBusy - service " .. tostring(id) .. " = " .. tostring(setValue))
+end
+
+--*******************************************
+-- test-and-set the shared busy lock (no yielding calls between test and set)
+-- exclusive across ALL services as they share the catalog write lock and login session
+-- returns true if acquired, false if another operation already holds it
+function PWStatusManager.tryAcquireBusy(publishService)
+    local id = publishService.localIdentifier
+    local owner = currentBusyOwner()
+    if owner then
+        log:info("PWStatusManager.tryAcquireBusy - REFUSED for service " .. tostring(id) ..
+            ", held by service " .. tostring(owner))
+        return false
+    end
+    PWStatusManager.setPiwigoBusy(publishService, true)
+    log:info("PWStatusManager.tryAcquireBusy - ACQUIRED for service " .. tostring(id))
+    return true
+end
+
+--*******************************************
+-- refresh the heartbeat while a long operation is running
+function PWStatusManager.touchBusy(publishService)
+    if sharedPrefs().piwigoBusyOwner == publishService.localIdentifier then
+        sharedPrefs().piwigoBusyTime = os.time()
+    end
+end
+
+--*******************************************
+-- true if any operation (in any publish service) holds the shared busy lock
+function PWStatusManager.isPiwigoBusy(publishService)
+    return currentBusyOwner() ~= nil
 end
 
 --*******************************************

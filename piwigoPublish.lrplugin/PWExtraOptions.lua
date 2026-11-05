@@ -96,14 +96,13 @@ local function setAlbumCoverFromSelection(service)
     if result ~= 'ok' then
         return false
     end
-
-    if not publishSettings.Connected then
-        local rv = PiwigoAPI.login(publishSettings)
-        if not rv then
-            LrDialogs.message("SetAlbumCover - cannot connect to Piwigo")
-            return false
-        end
+    -- check connection to piwigo
+    local rv = PWConnectionManager.ensureConnection(publishSettings)
+    if not rv then
+        LrDialogs.message("SetAlbumCover - cannot connect to Piwigo at " .. publishSettings.url)
+        return false
     end
+
 
     if publishSettings.userStatus ~= "webmaster" then
         LrDialogs.message("User needs webmaster role on Piwigo gallery at " ..
@@ -267,25 +266,13 @@ local function convertSelectionCollectionToSet(publishService)
     if result ~= 'ok' then
         return false
     end
+
     local silent = false
     local newCollSet = utils.convertCollectionToSet(catalog, publishService, selectedCollection, silent)
     if newCollSet then
         return true
     end
     return false
-    --[[
-    local newName = PiwigoAPI.buildSpecialCollectionName(selCollName)
-    local rv = PiwigoAPI.setCollectionDets(selectedCollection, catalog, publishSettings, newName, catId, selColParent)
-
-    local newCollSet = PiwigoAPI.createPublishCollectionSet(catalog, publishService, publishSettings, selCollName, catId,
-        selColParent)
-    if not newCollSet then
-        LrDialogs.message("CollToSet - Can't create new collection set " .. selCollName, "", "warning")
-        return false
-    end
-
-    rv = PiwigoAPI.setCollectionDets(selectedCollection, catalog, publishSettings, newName, catId, newCollSet)
-    ]]
 end
 
 -- *************************************************

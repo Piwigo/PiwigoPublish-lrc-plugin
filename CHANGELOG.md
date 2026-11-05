@@ -1,4 +1,22 @@
 # Changelog
+
+## [2.0.0]
+### Added
+Versioning moved to semantic versioning.  'Latest' release no longer checked by update checker - instead update checking now looks only for newer versions of the same major version. So v2.x only looks for newer v2.x and will ignore v3.x and above.
+
+### Fixed
+Fix #71
+Fix #76
+Connection manager now manages connections to Piwigo and ensures login credentials are not overwritten by spurious login attempts
+
+## [20260020.36]
+### Fixed
+Fix #74 unable to create child collection in album import
+
+### Added
+Improved progress notification during album import process.
+Update checker prepared for move to Semantic Versioning
+
 ## [20260327.35]
 ### Fixed
 Plugin extra options consolidated to single menu item in Library -> Plug-in Extras -> Piwigo Publisher Extra Options
@@ -75,7 +93,7 @@ Fix #21 - bad argument #1 to '?' - see readme note on embedded metadata
 
 ## [20260105.23] - 2026-01-05
 ### Fixed
-Fix #24 rename album does not update custom metadata. Also fix error that incorrect albumname was used for metadata with special collections 
+Fix #24 rename album does not update custom metadata. Also fix error that incorrect albumname was used for metadata with special collections
 Fix regression introduced by 20260104.22 causing crash when creating new album or album set
 
 ## [20260104.22] - 2026-01-04
@@ -134,7 +152,7 @@ Fixed #18 Setting up another publish service on a different catalogue generates 
 
 ## [20251204.11] - 2025-12-04
 ### Fixed #7 Adding keywords to a photo directly via Piwigo API intermittently generates error 1003 Keyword already exists
-- 
+-
 
 ## [20251203.10] - 2025-12-03
 ### Added
@@ -173,10 +191,10 @@ Fixed #18 Setting up another publish service on a different catalogue generates 
 - Missing albums are recreated (with a new Piwigo Cat ID) during Publish process
 
 ### Fixed
-- Crashes when Piwigo albums are removed from Piwigo directly, leaving the Plugin collections inconsistent. 
+- Crashes when Piwigo albums are removed from Piwigo directly, leaving the Plugin collections inconsistent.
 - Inconsistent connection messages when multiple publish services using this plugin are created.
 - Regression bug causing images to be duplicated rather then refreshed
-- Correct behaviour when additional new publish services are created 
+- Correct behaviour when additional new publish services are created
 - refactored calls to LrHttp.get function
 
 ## [20251117.1] - 2025-11-17
