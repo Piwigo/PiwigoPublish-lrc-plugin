@@ -39,7 +39,7 @@ local GITHUB_URL = "https://github.com/Piwigo/PiwigoPublish-lrc-plugin"
 -- Reset plugin preferences (optionally filtered by prefix)
 local function resetPluginPrefs(prefix)
     log:info("resetPluginPrefs \n" .. utils.serialiseVar(prefs))
-    --[[
+
     for k, _ in prefs:pairs() do
         if prefix then
             if k:find(prefix, 1, true) == 1 then
@@ -49,54 +49,32 @@ local function resetPluginPrefs(prefix)
             prefs[k] = nil
         end
     end
-    --]]
 end
 
 -- *************************************************
--- DIALOG LIFECYCLE
+-- DEV MACHINE CHECK
 -- *************************************************
-function PluginInfoDialogSections.startDialog(propertyTable)
-    -- Initialize update status
-    propertyTable.updateStatus = UpdateChecker.getUpdateStatus()
-
-    -- Initialize debug preferences
-    if prefs.debugEnabled == nil then
-        prefs.debugEnabled = false
-    end
-    if prefs.debugToFile == nil then
-        prefs.debugToFile = false
-    end
-    if prefs.debugFailedUpload == nil then
-        prefs.debugFailedUpload = false
-    end
-    -- Initialize update check preference
-    if prefs.checkUpdatesOnStartup == nil then
-        prefs.checkUpdatesOnStartup = true
-    end
-
-    -- Apply debug settings
-    if prefs.debugEnabled then
-        if prefs.debugToFile then
-            log:enable("logfile")
-        else
-            log:enable("print")
-        end
-    else
-        log:disable()
-    end
-
-    propertyTable.debugEnabled = prefs.debugEnabled
-    propertyTable.debugToFile = prefs.debugToFile
-    propertyTable.checkUpdatesOnStartup = prefs.checkUpdatesOnStartup
-    propertyTable.debugFailedUpload = prefs.debugFailedUpload
+local function isDevMachine()
+    -- ** look for dev machine flag file in home directory
+    -- Returns true if the flag file exists, false otherwise
+    log:info("Checking for dev machine flag file at home directory")
+    local devFlagFilename = ".piwigopublisher-dev"
+    local flag = LrPathUtils.child(
+        LrPathUtils.getStandardFilePath('home'),
+        devFlagFilename
+    )
+    log:info("Dev machine flag file path: " .. flag)
+    local exists = LrFileUtils.exists(flag) == 'file'
+    log:info("Dev machine flag file exists: " .. tostring(exists))
+    return exists
 end
 
 -- *************************************************
-function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
+local function sectionsForTopOfDialog(f, propertyTable)
     local bind = LrView.bind
     local share = LrView.share
-
-    return {
+    local dialog =
+    {
         -- ===================================
         -- SECTION 1: PLUG-IN INFO
         -- ===================================
@@ -356,46 +334,101 @@ function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
 
 
             },
+        },
+    }
 
-            -- Unsafe / developer group box
-            f:group_box {
-                title = "Unsafe area — Development only ",
+
+    local devGroupBox =
+    {
+        -- Unsafe / developer group box
+        f:group_box {
+            title = "Unsafe area — Development only ",
+            fill_horizontal = 1,
+            spacing = f:control_spacing(),
+
+            f:row {
                 fill_horizontal = 1,
-                spacing = f:control_spacing(),
-
-                f:row {
+                f:static_text {
+                    title = "Intended for plugin development and troubleshooting only.",
                     fill_horizontal = 1,
-                    f:static_text {
-                        title = "Intended for plugin development and troubleshooting only.",
-                        fill_horizontal = 1,
-                        alignment = 'left',
-                        text_color = LrColor(0.85, 0.45, 0),
-                    },
-                    f:push_button {
-                        title = "Reset Preferences…",
-                        action = function()
-                            local result = LrDialogs.confirm(
-                                "Reset Plugin Preferences",
-                                "This will delete all saved settings for this plugin.\n\n" ..
-                                "This cannot be undone.",
-                                "Reset",
-                                "Cancel"
+                    alignment = 'left',
+                    text_color = LrColor(0.85, 0.45, 0),
+                },
+                f:push_button {
+                    title = "Reset Preferences…",
+                    action = function()
+                        local result = LrDialogs.confirm(
+                            "Reset Plugin Preferences",
+                            "This will delete all saved settings for this plugin.\n\n" ..
+                            "This cannot be undone.",
+                            "Reset",
+                            "Cancel"
+                        )
+                        if result == "ok" then
+                            resetPluginPrefs()
+                            LrDialogs.message(
+                                "Preferences Reset",
+                                "Plugin preferences have been cleared.",
+                                "info"
                             )
-                            if result == "ok" then
-                                resetPluginPrefs()
-                                LrDialogs.message(
-                                    "Preferences Reset",
-                                    "Plugin preferences have been cleared.",
-                                    "info"
-                                )
-                            end
-                        end,
-                    },
+                        end
+                    end,
                 },
             },
         },
-
     }
+
+    log:info("Checking if this is a development machine: " .. tostring(isDevMachine))
+    if isDevMachine() then
+        table.insert(dialog, devGroupBox)
+    end
+
+    return dialog
+end
+
+-- *************************************************
+-- DIALOG LIFECYCLE
+-- *************************************************
+function PluginInfoDialogSections.startDialog(propertyTable)
+    -- Initialize update status
+    propertyTable.updateStatus = UpdateChecker.getUpdateStatus()
+
+    -- Initialize debug preferences
+    if prefs.debugEnabled == nil then
+        prefs.debugEnabled = false
+    end
+    if prefs.debugToFile == nil then
+        prefs.debugToFile = false
+    end
+    if prefs.debugFailedUpload == nil then
+        prefs.debugFailedUpload = false
+    end
+    -- Initialize update check preference
+    if prefs.checkUpdatesOnStartup == nil then
+        prefs.checkUpdatesOnStartup = true
+    end
+
+    -- Apply debug settings
+    if prefs.debugEnabled then
+        if prefs.debugToFile then
+            log:enable("logfile")
+        else
+            log:enable("print")
+        end
+    else
+        log:disable()
+    end
+
+    propertyTable.debugEnabled = prefs.debugEnabled
+    propertyTable.debugToFile = prefs.debugToFile
+    propertyTable.checkUpdatesOnStartup = prefs.checkUpdatesOnStartup
+    propertyTable.debugFailedUpload = prefs.debugFailedUpload
+end
+
+-- *************************************************
+function PluginInfoDialogSections.sectionsForTopOfDialog(f, propertyTable)
+    log:info("Generating sections for top of dialog")
+    return sectionsForTopOfDialog(f, propertyTable)
 end
 
 -- *************************************************
