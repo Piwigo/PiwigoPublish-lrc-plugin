@@ -132,7 +132,7 @@ function UpdateChecker.fetchAndFilterReleases(targetMajor)
     -- Fetches all releases from GitHub and filters to SemVer versions matching targetMajor.
     -- Returns array of release tables or empty array on error.
     local url = string.format(
-        "https://api.github.com/repos/%s/%s/releases",
+        "https://api.github.com/repos/%s/%s/releases?per_page=100",
         UpdateChecker.GITHUB_OWNER,
         UpdateChecker.GITHUB_REPO
     )
@@ -161,7 +161,8 @@ function UpdateChecker.fetchAndFilterReleases(targetMajor)
     local filtered = {}
     for _, release in ipairs(releases) do
         local tag = release.tag_name
-        if tag then
+        --if tag then
+        if tag and not release.draft and not release.prerelease and not tag:find("%-") then
             local major = UpdateChecker.extractMajorVersion(tag)
             if major and major == targetMajor then
                 table.insert(filtered, release)
