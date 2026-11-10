@@ -5,8 +5,7 @@
 Versioning and update checking:
 
 Releases now use semantic versioning (v2.0.0, v2.0.1, v2.1.0, and so on). Date-based version numbers are retired.
-The update checker no longer relies on GitHub’s “Latest” release. It now looks only for newer releases within your installed major version, so v2.x will only offer newer v2.x releases and will never offer v3.0 or later as an update.
-Check now in the Plug-in Manager also checks whether a newer major version exists. If one does, you’ll see a one-time notice. It’s informational only and doesn’t offer a download, so read the release notes before upgrading.
+The update checker no longer relies on GitHub’s “Latest” release. It now looks only for newer releases within your installed major version, so v2.x will only offer newer v2.x releases and will never offer v3.0 or later as an update. It does check whether a newer major version exists, and if one does, you’ll see a one-time notice. It’s informational only and doesn’t offer a download, so please read the release notes before upgrading.
 Heads-up: v3 will require switching to Piwigo API key authentication.
 
 ### Fixed
