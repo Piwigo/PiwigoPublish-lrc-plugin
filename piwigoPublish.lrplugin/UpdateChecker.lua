@@ -421,8 +421,10 @@ function UpdateChecker.checkForMajorVersionNotice(silent)
     local nextMajor = installedMajor + 1
     local releases = UpdateChecker.fetchAndFilterReleases(nextMajor)
 
-    if #releases > 0 then
-        prefs.notifiedV3Available = true
+    if releases and #releases > 0 then
+        local flag = "notifiedMajor" .. nextMajor
+        if prefs[flag] then return end
+        prefs[flag] = true
         LrDialogs.message(
             "New Major Version Available",
             string.format(
