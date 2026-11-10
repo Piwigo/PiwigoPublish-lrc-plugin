@@ -2,12 +2,17 @@
 
 ## [2.0.0]
 ### Added
-Versioning moved to semantic versioning.  'Latest' release no longer checked by update checker - instead update checking now looks only for newer versions of the same major version. So v2.x only looks for newer v2.x and will ignore v3.x and above.
+Versioning and update checking:
+
+Releases now use semantic versioning (v2.0.0, v2.0.1, v2.1.0, and so on). Date-based version numbers are retired.
+The update checker no longer relies on GitHub’s “Latest” release. It now looks only for newer releases within your installed major version, so v2.x will only offer newer v2.x releases and will never offer v3.0 or later as an update.
+Check now in the Plug-in Manager also checks whether a newer major version exists. If one does, you’ll see a one-time notice. It’s informational only and doesn’t offer a download, so read the release notes before upgrading.
+Heads-up: v3 will require switching to Piwigo API key authentication.
 
 ### Fixed
 Fix #71
 Fix #76
-Connection manager now manages connections to Piwigo and ensures login credentials are not overwritten by spurious login attempts
+Connection manager now manages connections to Piwigo and ensures login credentials are not overwritten by unnecessary logins
 
 ## [20260020.36]
 ### Fixed
