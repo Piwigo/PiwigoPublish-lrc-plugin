@@ -24,4 +24,9 @@
 -- clear stale authentication credentials held in prefs
 log:info("piwigoPublish PluginShutdown - clearing stale authentication credentials")
 
-PWConnectionManager.clearCredentialsFromPrefs(prefs)
+return {
+    LrShutdownFunction = function(doneFunction, progressFunction)
+        PWConnectionManager.clearCredentialsFromPrefs(prefs)
+        doneFunction()
+    end,
+}

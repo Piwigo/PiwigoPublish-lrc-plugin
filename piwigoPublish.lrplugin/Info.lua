@@ -28,7 +28,7 @@ return {
     LrMetadataProvider      = 'CustomMetadata.lua',
     LrMetadataTagsetFactory = 'Tagset.lua',
     LrInitPlugin            = "PluginInit.lua",
-    LrShutdownPlugin        = "PluginShutdown.lua",
+    -- LrShutdownPlugin        = "PluginShutdown.lua",
     -- LrEnablePlugin          = "PluginInit.lua",
     -- LrDisablePlugin         = "PluginShutdown.lua",
     LrShutdownApp           = "PluginShutdown.lua",
@@ -49,5 +49,5 @@ return {
 
     LrPluginInfoProvider = 'PluginInfo.lua',
 
-    VERSION = { major = 2, minor = 0, revision = 0 },
+    VERSION = { major = 2, minor = 0, revision = 1 },
 }

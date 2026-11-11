@@ -84,7 +84,7 @@ PWConnectionManager.clearCredentialsFromPrefs(prefs)
 -- just need to ensure both places are updated together
 
 
-_G.versionInfo = { major = 2, minor = 0, revision = 0 }                                                  --- IGNORE ---
+_G.versionInfo = { major = 2, minor = 0, revision = 1 }                                                  --- IGNORE ---
 
 _G.pluginVersion = string.format("%d.%d.%d", versionInfo.major, versionInfo.minor, versionInfo.revision) --- IGNORE ---
 
