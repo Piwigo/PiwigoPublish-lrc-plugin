@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.0.1]
+### Fixed
+Fix #77 Strange background task window after closing - added code to
+
 ## [2.0.0]
 ### Added
 Versioning and update checking:
