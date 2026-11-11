@@ -2,7 +2,7 @@
 
 ## [2.0.1]
 ### Fixed
-Fix #77 Strange background task window after closing - added code to
+Fix #77 Strange background task window after closing  - added code to notify LrC on completion of closedown task
 
 ## [2.0.0]
 ### Added
